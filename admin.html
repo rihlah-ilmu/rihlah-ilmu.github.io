@@ -73,24 +73,28 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = d => d ? new Date(d).toLocaleString('id-ID', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '-';
 const avg = a => a.length ? Math.round(a.reduce((s, x) => s + x, 0) / a.length) : null;
-const kunciAdmin = () => (location.hash.match(/k=([^&]+)/) || [])[1] || '';
+const kunciAdmin = () => (location.hash.match(/[#&]k=([^&]+)/) || [])[1] || '';
+const kunciGuru = () => (location.hash.match(/[#&]g=([^&]+)/) || [])[1] || '';
+const isGuru = () => D && D.peran === 'guru';
+const auth = () => kunciGuru() && !kunciAdmin() ? {g: kunciGuru()} : {k: kunciAdmin()};
+const milikRombel = (r, t) => !t || (r || '') === t || String(r || '').indexOf(t + '-') === 0;
 let D = null, TAB = 'ringkasan', F = {kelas: 'Semua', jalur: '', rentang: '30', cari: '', rombel: ''}, SORT = {k: 'terakhir', d: -1};
 
 async function muat(){
   if (DEMO_ADMIN) { D = DEMO_ADMIN; return tampil(); }
-  const k = kunciAdmin();
+  const k = kunciAdmin() || kunciGuru();
   if (!API_URL || !k) {
-    $('#main').innerHTML = `<div class="card gate"><h2>Butuh link admin</h2><p class="small">Buka halaman ini memakai link admin yang berisi kode rahasia, contoh: admin.html#k=KODE. Kode admin ada di Google Sheet, menu Rihlah Ilmu &gt; Tampilkan kode admin.${API_URL ? '' : '<br><br>API_URL di dalam admin.html juga belum diisi.'}</p></div>`;
+    $('#main').innerHTML = `<div class="card gate"><h2>Butuh link admin</h2><p class="small">Buka halaman ini memakai link admin yang berisi kode rahasia, contoh: admin.html#k=KODE. Kode admin ada di Google Sheet, menu Rihlah Ilmu &gt; Tampilkan kode admin.<br><br>Anda guru dari sekolah lain? <a href="guru.html">Daftar dan dapatkan link guru di sini</a>.${API_URL ? '' : '<br><br>API_URL di dalam admin.html juga belum diisi.'}</p></div>`;
     return;
   }
   $('#main').innerHTML = '<p class="empty">Memuat data…</p>';
   try {
-    const r = await fetch(API_URL + '?action=admin&k=' + encodeURIComponent(k));
+    const a = auth(); const r = await fetch(API_URL + '?action=admin&' + (a.g ? 'g=' + encodeURIComponent(a.g) : 'k=' + encodeURIComponent(a.k)));
     const j = await r.json();
     if (!j.ok) throw new Error(j.error);
     D = j; tampil();
   } catch (e) {
-    $('#main').innerHTML = `<div class="card gate"><h2>Gagal memuat</h2><p class="small">${String(e.message).includes('kode_admin') ? 'Kode admin salah atau sudah diganti.' : 'Periksa koneksi internet dan URL server.'}</p></div>`;
+    $('#main').innerHTML = `<div class="card gate"><h2>Gagal memuat</h2><p class="small">${String(e.message).includes('kode_admin') ? (kunciGuru() ? 'Link guru tidak berlaku atau sudah dinonaktifkan. Hubungi pengelola Rihlah Ilmu.' : 'Kode admin salah atau sudah diganti.') : 'Periksa koneksi internet dan URL server.'}</p></div>`;
   }
 }
 $('#ref').onclick = muat;
@@ -119,8 +123,10 @@ function judulBab(kelas, mapel, no){ const m = D.materi.find(x => x.kelas === ke
 /* ---------- tampilan ---------- */
 function tampil(){
   $('#upd').textContent = 'Data per ' + fmt(D.dibuat);
+  document.querySelector('header h1').innerHTML = isGuru() ? `Rihlah <span>Ilmu</span> · Guru` : `Rihlah <span>Ilmu</span> · Admin`;
   const jalurOpt = daftarJalur().map(j => { const [k, m] = j.split('|'); return `<option value="${esc(j)}" ${F.jalur === j ? 'selected' : ''}>${esc(m)} kelas ${esc(k)}</option>`; }).join('');
   $('#main').innerHTML = `
+    ${isGuru() ? `<div class="card" style="background:#eaf2fb;border-left:6px solid #4a90c8"><b>Assalamu'alaikum, ${esc(D.guru.nama)}</b>${D.guru.sekolah ? ' · ' + esc(D.guru.sekolah) : ''}<p class="small" style="margin:4px 0 0">Anda melihat siswa dengan kode rombel berawalan <b>${esc(D.guru.awalan)}</b> (contoh: <code>${esc(D.guru.awalan)}-XI-A</code>). Minta siswa mengisi kode rombel itu saat mendaftar, atau lewat Paspor → Ubah nama atau kelas. Link ini khusus untuk Anda, mohon tidak dibagikan.</p></div>` : ''}
     ${DEMO_ADMIN ? '<div class="card small" style="background:#fff4d8">Pratinjau dengan <b>data contoh</b> (bukan pemain sungguhan). Versi asli menampilkan data dari Google Sheet.</div>' : ''}
     <nav>${[['ringkasan','Ringkasan'],['pemain','Daftar Pemain'],['tugas','Tugas'],['peta','Peta Kemampuan'],['soal','Analisis Soal'],['unduh','Unduh Data']].map(([k, n]) => `<button data-t="${k}" class="${TAB === k ? 'on' : ''}">${n}</button>`).join('')}</nav>
     <div class="filters">
@@ -218,7 +224,7 @@ function tabPemain(){
   $('#isi').innerHTML = `<div class="filters"><input id="cari" placeholder="Cari nama…" value="${esc(F.cari)}"><span class="small">${rows.length} pemain · klik judul kolom untuk mengurutkan</span><button class="btn gold" id="cetakSemua" style="margin-left:auto">🖨 Cetak rapor semua (${rows.length})</button></div>
     <div class="card"><table><tr>${cols.map(([k, n]) => `<th data-k="${k}" class="${['main','tuntas','rata','bintang'].includes(k) ? 'num' : ''}">${n}${SORT.k === k ? (SORT.d > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}<th></th></tr>
     ${rows.map(p => `<tr class="${p.disembunyikan ? 'hid' : ''}"><td><button class="link" data-id="${esc(p.id_pemain)}">${esc(p.nama)}</button></td><td>${esc(p.kelas)}</td><td>${esc(p.rombel || '-')}</td><td>${fmt(p.terakhir)}</td><td class="num">${p.main}</td><td class="num">${p.tuntas}</td><td class="num">${p.rata ?? '-'}</td><td class="num">${p.bintang}</td>
-      <td><button class="btn" data-h="${esc(p.id_pemain)}" style="padding:5px 9px;font-size:12px">${p.disembunyikan ? 'Tampilkan' : 'Sembunyikan'}</button></td></tr>`).join('')}</table>
+      <td>${isGuru() ? '' : `<button class="btn" data-h="${esc(p.id_pemain)}" style="padding:5px 9px;font-size:12px">${p.disembunyikan ? 'Tampilkan' : 'Sembunyikan'}</button>`}</td></tr>`).join('')}</table>
     ${rows.length ? '' : '<p class="empty">Tidak ada pemain.</p>'}</div>`;
   $('#cari').oninput = e => { F.cari = e.target.value; const pos = e.target.selectionStart; tabPemain(); $('#cari').focus(); $('#cari').setSelectionRange(pos, pos); };
   document.querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { SORT = {k: th.dataset.k, d: SORT.k === th.dataset.k ? -SORT.d : -1}; tabPemain(); });
@@ -307,7 +313,7 @@ function rombelList(){ return [...new Set(D.pemain.map(p => p.rombel).filter(Boo
 /* ---------- Tugas dari Ustadz ---------- */
 const MAPEL = ["Al-Qur'an Hadis", 'Akidah Akhlak', 'Fikih', 'SKI'];
 function statusTugas(t){
-  const peserta = D.pemain.filter(p => !p.disembunyikan && p.kelas === t.kelas && (!t.rombel || (p.rombel || '') === t.rombel));
+  const peserta = D.pemain.filter(p => !p.disembunyikan && p.kelas === t.kelas && milikRombel(p.rombel, t.rombel));
   const babs = []; for (let n = t.bab_dari; n <= t.bab_sampai; n++) babs.push(n);
   const tuntas = {};
   D.hasil.forEach(h => { if (h.jenis_tahap === 'manzil' && h.wilayah === t.kelas && h.mapel === t.mapel && h.bintang >= 1 && babs.includes(h.no_bab)) (tuntas[h.id_pemain] = tuntas[h.id_pemain] || new Set()).add(h.no_bab); });
@@ -320,7 +326,7 @@ function tabTugas(){
   const T = (D.tugas || []).slice().sort((a, b) => a.dibuat < b.dibuat ? 1 : -1);
   const maxBab = (k, m) => D.materi.filter(x => x.kelas === k && x.mapel === m).length || 12;
   $('#isi').innerHTML = `<div class="card"><h2>Buat tugas baru</h2>
-    <p class="small" style="margin:0 0 10px">Tugas muncul di Peta siswa dengan kelas (dan rombel, jika diisi) yang sesuai. Siswa dianggap selesai jika semua manzil dalam rentang meraih minimal satu bintang.</p>
+    <p class="small" style="margin:0 0 10px">Tugas muncul di Peta siswa dengan kelas dan rombel yang sesuai (rombel induk seperti <code>MAN2SMG</code> mencakup <code>MAN2SMG-XI-A</code>, <code>MAN2SMG-XI-B</code>, dan seterusnya). Siswa dianggap selesai jika semua manzil dalam rentang meraih minimal satu bintang.</p>
     <div class="form">
       <div style="grid-column:1/-1"><label>Judul tugas</label><input id="tj" maxlength="80" placeholder="Contoh: Persiapan ulangan bab Muamalah"></div>
       <div><label>Kelas</label><select id="tk">${['X','XI','XII'].map(k => `<option>${k}</option>`).join('')}</select></div>
@@ -328,7 +334,7 @@ function tabTugas(){
       <div><label>Dari manzil</label><input id="td" type="number" min="1" value="1"></div>
       <div><label>Sampai manzil</label><input id="ts" type="number" min="1" value="1"></div>
       <div><label>Tenggat (opsional)</label><input id="tt2" type="date"></div>
-      <div><label>Rombel (opsional)</label><input id="tr" maxlength="20" placeholder="Kosongkan = semua" style="text-transform:uppercase"></div>
+      <div><label>${isGuru() ? 'Rombel (wajib diawali ' + esc(D.guru.awalan) + ')' : 'Rombel (opsional)'}</label><input id="tr" maxlength="20" placeholder="${isGuru() ? esc(D.guru.awalan) + ' = semua siswa Anda' : 'Kosongkan = semua'}" value="${isGuru() ? esc(D.guru.awalan) : ''}" style="text-transform:uppercase"></div>
       <div><button class="btn gold" id="tbuat" style="width:100%">Buat tugas</button></div>
     </div><p class="small" id="tinfo" style="margin:8px 0 0"></p></div>
     <div class="card"><h2>Daftar tugas</h2>${T.length ? T.map(t => {
@@ -348,6 +354,7 @@ function tabTugas(){
       tenggat: $('#tt2').value ? $('#tt2').value + 'T23:59:00+07:00' : '', rombel: $('#tr').value.toUpperCase().replace(/[^A-Z0-9-]/g, '')};
     if (!t.judul) t.judul = `${t.mapel} kelas ${t.kelas}, manzil ${t.bab_dari}${t.bab_sampai > t.bab_dari ? '–' + t.bab_sampai : ''}`;
     if (t.bab_sampai < t.bab_dari) { alertBox('Manzil "sampai" tidak boleh lebih kecil dari "dari".'); return; }
+    if (isGuru()) { if (!t.rombel) t.rombel = D.guru.awalan; if (!milikRombel(t.rombel, D.guru.awalan)) { alertBox('Rombel harus ' + D.guru.awalan + ' atau diawali ' + D.guru.awalan + '-, misalnya ' + D.guru.awalan + '-XI-A.'); return; } }
     kirimTugas(t);
   };
   document.querySelectorAll('[data-ta]').forEach(b => b.onclick = () => { const t = D.tugas.find(x => x.id_tugas === b.dataset.ta); kirimTugas({id_tugas: t.id_tugas, aktif: !t.aktif}); });
@@ -362,7 +369,7 @@ async function kirimTugas(body){
     return tabTugas();
   }
   try {
-    const r = await fetch(API_URL, {method: 'POST', body: JSON.stringify({action: 'tugas', k: kunciAdmin(), ...body})});
+    const r = await fetch(API_URL, {method: 'POST', body: JSON.stringify({action: 'tugas', ...auth(), ...body})});
     const j = await r.json(); if (!j.ok) throw new Error(j.error);
     await muat(); TAB = 'tugas'; tampil();
   } catch (e) { alertBox('Gagal menyimpan tugas: ' + e.message + '. Pastikan Code.gs versi terbaru sudah dipasang dan di-deploy ulang.'); }

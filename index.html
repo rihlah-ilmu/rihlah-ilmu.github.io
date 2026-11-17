@@ -377,6 +377,7 @@ function scrGerbang(){
     <div class="siraj">${SIRAJ}<div>${p ? `Ahlan wa sahlan kembali, <b>${esc(p.nama.split(' ')[0])}</b>! Kafilahmu sudah menunggu.` : 'Assalamu\'alaikum, musafir ilmu! Aku Siraj, lentera pemandumu. Siap berangkat?'}</div></div>
     <button class="btn gold" id="go">${p ? 'Lanjutkan Perjalanan' : 'Mulai Perjalanan'}</button>
     ${p ? '' : `<button class="btn ghost mt" id="kode">Punya Kode Lanjut?</button>`}
+    <a href="guru.html" class="dim" style="display:block;text-align:center;margin-top:18px;font-size:13px;color:#cfd6ea">Anda guru? Pantau capaian siswa di sini →</a>
   </div>`;
   $('#go').onclick = () => { beep('tap'); p ? scrPeta() : scrIdentitas(); };
   if (!p) $('#kode').onclick = scrLanjut;
@@ -573,7 +574,7 @@ async function panelPeta(){
   let h = '';
   // tugas
   const rb = (S.player.rombel || '').toUpperCase();
-  const tugas = (DEMO ? (DEMO.tugas || []) : store.get('tugas', [])).filter(t => (S.player.kelas === 'Umum' || t.kelas === S.player.kelas) && (!t.rombel || t.rombel === rb)
+  const tugas = (DEMO ? (DEMO.tugas || []) : store.get('tugas', [])).filter(t => (S.player.kelas === 'Umum' || t.kelas === S.player.kelas) && (!t.rombel || t.rombel === rb || rb.indexOf(t.rombel + '-') === 0)
     && (!t.tenggat || Date.now() - new Date(t.tenggat).getTime() < 7 * 864e5));
   tugas.forEach((t, i) => {
     const total = t.bab_sampai - t.bab_dari + 1;
