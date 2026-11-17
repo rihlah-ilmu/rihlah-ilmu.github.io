@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin Rihlah Ilmu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f5f1e8;--card:#fff;--ink:#1d2433;--muted:#6b6f7c;--line:#e8e1d0;--night:#14213d;--gold:#e7b84a}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--night);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;flex:1;min-width:180px}
+header h1 span{color:var(--gold)}
+header .upd{font-size:12px;color:#b9c2da}
+button,select,input{font:inherit}
+.btn{border:0;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;background:#eee5cf;color:var(--ink)}
+.btn.gold{background:var(--gold);color:#3b2b05}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+nav button{border:0;background:#fff;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;color:var(--muted)}
+nav button.on{background:var(--night);color:#fff}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.filters select,.filters input{border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--card);border-radius:14px;padding:14px 16px}
+.kpi b{display:block;font-size:28px;font-weight:800}
+.kpi span{font-size:13px;color:var(--muted)}
+.card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;overflow:auto}
+.card h2{font-size:16px;margin:0 0 10px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);background:#faf7f0;position:sticky;top:0;cursor:pointer;white-space:nowrap}
+td.num,th.num{text-align:right}
+tr.hid td{opacity:.45}
+.link{color:#1e5aa8;cursor:pointer;font-weight:700;background:none;border:0;padding:0}
+.heat td{text-align:center;font-weight:700;min-width:46px}
+.h0{background:#eceae4;color:#9a9a9a}.h1{background:#f8d7d5;color:#7a2421}.h2{background:#fbeccb;color:#6b4e00}.h3{background:#d7efe1;color:#17573a}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:4px}
+.bar{height:8px;border-radius:99px;background:#eee;overflow:hidden;min-width:80px}
+.bar i{display:block;height:100%}
+.modal{position:fixed;inset:0;background:rgba(10,15,30,.5);display:flex;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto;z-index:5}
+.modal .card{max-width:760px;width:100%}
+.empty{color:var(--muted);text-align:center;padding:30px}
+.gate{max-width:420px;margin:60px auto;text-align:center}
+.small{font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header><h1>Rihlah <span>Ilmu</span> · Admin</h1><span class="upd" id="upd"></span><button class="btn gold" id="ref">Muat ulang</button></header>
+<div class="wrap" id="main"><p class="empty">Memuat data…</p></div>
+
+<script>
+const API_URL = "";            // isi dengan URL Web App yang sama dengan index.html
+const DEMO_ADMIN = /*DEMO_ADMIN*/null;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = d => d ? new Date(d).toLocaleString('id-ID', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '-';
+const avg = a => a.length ? Math.round(a.reduce((s, x) => s + x, 0) / a.length) : null;
+const kunciAdmin = () => (location.hash.match(/k=([^&]+)/) || [])[1] || '';
+let D = null, TAB = 'ringkasan', F = {kelas: 'Semua', jalur: '', rentang: '30', cari: ''}, SORT = {k: 'terakhir', d: -1};
+
+async function muat(){
+  if (DEMO_ADMIN) { D = DEMO_ADMIN; return tampil(); }
+  const k = kunciAdmin();
+  if (!API_URL || !k) {
+    $('#main').innerHTML = `<div class="card gate"><h2>Butuh link admin</h2><p class="small">Buka halaman ini memakai link admin yang berisi kode rahasia, contoh: admin.html#k=KODE. Kode admin ada di Google Sheet, menu Rihlah Ilmu &gt; Tampilkan kode admin.${API_URL ? '' : '<br><br>API_URL di dalam admin.html juga belum diisi.'}</p></div>`;
+    return;
+  }
+  $('#main').innerHTML = '<p class="empty">Memuat data…</p>';
+  try {
+    const r = await fetch(API_URL + '?action=admin&k=' + encodeURIComponent(k));
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error);
+    D = j; tampil();
+  } catch (e) {
+    $('#main').innerHTML = `<div class="card gate"><h2>Gagal memuat</h2><p class="small">${String(e.message).includes('kode_admin') ? 'Kode admin salah atau sudah diganti.' : 'Periksa koneksi internet dan URL server.'}</p></div>`;
+  }
+}
+$('#ref').onclick = muat;
+
+/* ---------- olah data ---------- */
+function batasWaktu(){ return F.rentang === 'semua' ? 0 : Date.now() - (+F.rentang) * 864e5; }
+function hasilTersaring(){
+  const t = batasWaktu();
+  const pk = {}; D.pemain.forEach(p => pk[p.id_pemain] = p);
+  return D.hasil.filter(h => {
+    if (t && new Date(h.waktu).getTime() < t) return false;
+    if (F.kelas !== 'Semua' && h.kelas_pemain !== F.kelas) return false;
+    if (F.jalur && (h.wilayah + '|' + h.mapel) !== F.jalur) return false;
+    return pk[h.id_pemain];
+  });
+}
+function daftarJalur(){
+  const s = new Set(D.hasil.map(h => h.wilayah + '|' + h.mapel));
+  D.materi.forEach(m => s.add(m.kelas + '|' + m.mapel));
+  return [...s].sort();
+}
+function judulBab(kelas, mapel, no){ const m = D.materi.find(x => x.kelas === kelas && x.mapel === mapel && x.no_bab === no); return m ? m.judul_bab : 'Bab ' + no; }
+
+/* ---------- tampilan ---------- */
+function tampil(){
+  $('#upd').textContent = 'Data per ' + fmt(D.dibuat);
+  const jalurOpt = daftarJalur().map(j => { const [k, m] = j.split('|'); return `<option value="${esc(j)}" ${F.jalur === j ? 'selected' : ''}>${esc(m)} kelas ${esc(k)}</option>`; }).join('');
+  $('#main').innerHTML = `
+    ${DEMO_ADMIN ? '<div class="card small" style="background:#fff4d8">Pratinjau dengan <b>data contoh</b> (bukan pemain sungguhan). Versi asli menampilkan data dari Google Sheet.</div>' : ''}
+    <nav>${[['ringkasan','Ringkasan'],['pemain','Daftar Pemain'],['peta','Peta Kemampuan'],['soal','Analisis Soal'],['unduh','Unduh Data']].map(([k, n]) => `<button data-t="${k}" class="${TAB === k ? 'on' : ''}">${n}</button>`).join('')}</nav>
+    <div class="filters">
+      <select id="fk">${['Semua','X','XI','XII','Umum'].map(k => `<option ${F.kelas === k ? 'selected' : ''} value="${k}">${k === 'Semua' ? 'Semua kelas pemain' : 'Pemain kelas ' + k}</option>`).join('')}</select>
+      <select id="fj"><option value="">Semua jalur</option>${jalurOpt}</select>
+      <select id="fr">${[['7','7 hari terakhir'],['30','30 hari terakhir'],['90','90 hari terakhir'],['semua','Semua waktu']].map(([v, n]) => `<option value="${v}" ${F.rentang === v ? 'selected' : ''}>${n}</option>`).join('')}</select>
+    </div>
+    <div id="isi"></div>`;
+  document.querySelectorAll('nav button').forEach(b => b.onclick = () => { TAB = b.dataset.t; tampil(); });
+  $('#fk').onchange = e => { F.kelas = e.target.value; tampil(); };
+  $('#fj').onchange = e => { F.jalur = e.target.value; tampil(); };
+  $('#fr').onchange = e => { F.rentang = e.target.value; tampil(); };
+  ({ringkasan, pemain: tabPemain, peta, soal: tabSoal, unduh})[TAB]();
+}
+
+function ringkasan(){
+  const H = hasilTersaring();
+  const P = D.pemain.filter(p => F.kelas === 'Semua' || p.kelas === F.kelas);
+  const hariIni = new Date(); hariIni.setHours(0, 0, 0, 0);
+  const aktif7 = new Set(D.hasil.filter(h => new Date(h.waktu) >= Date.now() - 7 * 864e5).map(h => h.id_pemain));
+  const mainHariIni = H.filter(h => new Date(h.waktu) >= hariIni).length;
+  const perKelas = ['X','XI','XII','Umum'].map(k => {
+    const ps = D.pemain.filter(p => p.kelas === k), hs = H.filter(h => h.kelas_pemain === k);
+    return `<tr><td>${k}</td><td class="num">${ps.length}</td><td class="num">${hs.length}</td><td class="num">${avg(hs.map(h => h.nilai)) ?? '-'}</td></tr>`;
+  }).join('');
+  const hit = {};
+  H.filter(h => h.jenis_tahap === 'manzil').forEach(h => { const k = h.wilayah + '|' + h.mapel + '|' + h.no_bab; (hit[k] = hit[k] || []).push(h.nilai); });
+  const top = Object.entries(hit).sort((a, b) => b[1].length - a[1].length).slice(0, 8).map(([k, v]) => {
+    const [kl, mp, no] = k.split('|');
+    return `<tr><td>${esc(mp)} ${kl} · ${no}. ${esc(judulBab(kl, mp, +no))}</td><td class="num">${v.length}</td><td class="num">${avg(v)}</td></tr>`;
+  }).join('');
+  $('#isi').innerHTML = `<div class="kpis">
+      <div class="kpi"><b>${P.length}</b><span>Pemain terdaftar</span></div>
+      <div class="kpi"><b>${aktif7.size}</b><span>Aktif 7 hari terakhir</span></div>
+      <div class="kpi"><b>${mainHariIni}</b><span>Permainan hari ini</span></div>
+      <div class="kpi"><b>${H.length}</b><span>Permainan dalam filter</span></div>
+      <div class="kpi"><b>${avg(H.map(h => h.nilai)) ?? '-'}</b><span>Rata-rata nilai</span></div>
+    </div>
+    <div class="card"><h2>Per kelas pemain</h2><table><tr><th>Kelas</th><th class="num">Pemain</th><th class="num">Permainan</th><th class="num">Rata-rata nilai</th></tr>${perKelas}</table></div>
+    <div class="card"><h2>Manzil paling banyak dimainkan</h2>${top ? `<table><tr><th>Manzil</th><th class="num">Dimainkan</th><th class="num">Rata-rata</th></tr>${top}</table>` : '<p class="empty">Belum ada permainan dalam filter ini.</p>'}</div>`;
+}
+
+function statPemain(){
+  const H = hasilTersaring();
+  return D.pemain.filter(p => F.kelas === 'Semua' || p.kelas === F.kelas)
+    .filter(p => !F.cari || p.nama.toLowerCase().includes(F.cari.toLowerCase()))
+    .map(p => {
+      const hs = H.filter(h => h.id_pemain === p.id_pemain);
+      const best = {};
+      hs.filter(h => h.jenis_tahap === 'manzil').forEach(h => { const k = h.wilayah + h.mapel + h.no_bab; best[k] = Math.max(best[k] || 0, h.nilai); });
+      const b = Object.values(best);
+      return {...p, main: hs.length, tuntas: b.filter(x => x >= 50).length, rata: avg(b), bintang: b.reduce((s, x) => s + (x >= 90 ? 3 : x >= 70 ? 2 : x >= 50 ? 1 : 0), 0), terakhir: p.terakhir_main};
+    });
+}
+function tabPemain(){
+  const rows = statPemain().sort((a, b) => {
+    const x = a[SORT.k], y = b[SORT.k];
+    return (x > y ? 1 : x < y ? -1 : 0) * SORT.d;
+  });
+  const cols = [['nama','Nama'],['kelas','Kelas'],['terakhir','Terakhir main'],['main','Permainan'],['tuntas','Manzil tuntas'],['rata','Rata-rata'],['bintang','Bintang']];
+  $('#isi').innerHTML = `<div class="filters"><input id="cari" placeholder="Cari nama…" value="${esc(F.cari)}"><span class="small">${rows.length} pemain · klik judul kolom untuk mengurutkan</span></div>
+    <div class="card"><table><tr>${cols.map(([k, n]) => `<th data-k="${k}" class="${['main','tuntas','rata','bintang'].includes(k) ? 'num' : ''}">${n}${SORT.k === k ? (SORT.d > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}<th></th></tr>
+    ${rows.map(p => `<tr class="${p.disembunyikan ? 'hid' : ''}"><td><button class="link" data-id="${esc(p.id_pemain)}">${esc(p.nama)}</button></td><td>${esc(p.kelas)}</td><td>${fmt(p.terakhir)}</td><td class="num">${p.main}</td><td class="num">${p.tuntas}</td><td class="num">${p.rata ?? '-'}</td><td class="num">${p.bintang}</td>
+      <td><button class="btn" data-h="${esc(p.id_pemain)}" style="padding:5px 9px;font-size:12px">${p.disembunyikan ? 'Tampilkan' : 'Sembunyikan'}</button></td></tr>`).join('')}</table>
+    ${rows.length ? '' : '<p class="empty">Tidak ada pemain.</p>'}</div>`;
+  $('#cari').oninput = e => { F.cari = e.target.value; const pos = e.target.selectionStart; tabPemain(); $('#cari').focus(); $('#cari').setSelectionRange(pos, pos); };
+  document.querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { SORT = {k: th.dataset.k, d: SORT.k === th.dataset.k ? -SORT.d : -1}; tabPemain(); });
+  document.querySelectorAll('[data-id]').forEach(b => b.onclick = () => detail(b.dataset.id));
+  document.querySelectorAll('[data-h]').forEach(b => b.onclick = () => sembunyikan(b.dataset.h));
+}
+
+async function sembunyikan(id){
+  const p = D.pemain.find(x => x.id_pemain === id); const nilai = !p.disembunyikan;
+  if (DEMO_ADMIN) { p.disembunyikan = nilai; return tabPemain(); }
+  try {
+    const r = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'sembunyikan', k: kunciAdmin(), id_pemain: id, nilai})});
+    const j = await r.json(); if (!j.ok) throw new Error(j.error);
+    p.disembunyikan = nilai; tabPemain();
+  } catch (e) { alertBox('Gagal menyimpan: ' + e.message); }
+}
+
+function detail(id){
+  const p = D.pemain.find(x => x.id_pemain === id);
+  const hs = D.hasil.filter(h => h.id_pemain === id).sort((a, b) => a.waktu < b.waktu ? 1 : -1);
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><h2 style="margin:0">${esc(p.nama)}</h2><p class="small">Kelas ${esc(p.kelas)} · kode ${esc(p.kode_lanjut)} · mulai ${fmt(p.pertama_main)}</p></div><button class="btn" id="tt">Tutup</button></div>
+    <table><tr><th>Waktu</th><th>Jalur</th><th>Tahap</th><th class="num">Nilai</th><th class="num">Durasi</th></tr>
+    ${hs.map(h => `<tr><td>${fmt(h.waktu)}</td><td>${esc(h.mapel)} ${esc(h.wilayah)}</td><td>${h.jenis_tahap === 'manzil' ? h.no_bab + '. ' + esc(judulBab(h.wilayah, h.mapel, h.no_bab)) : 'Munazharah'}</td><td class="num"><b>${h.nilai}</b></td><td class="num">${Math.round(h.durasi_detik / 60)} mnt</td></tr>`).join('')}</table>
+    ${hs.length ? '' : '<p class="empty">Belum pernah bermain.</p>'}</div>`;
+  document.body.appendChild(m);
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  m.querySelector('#tt').onclick = () => m.remove();
+}
+
+function kls(v){ return v == null ? 'h0' : v >= 80 ? 'h3' : v >= 50 ? 'h2' : 'h1'; }
+function peta(){
+  const jalur = F.jalur || daftarJalur()[0];
+  if (!jalur) { $('#isi').innerHTML = '<p class="empty">Belum ada data.</p>'; return; }
+  const [kl, mp] = jalur.split('|');
+  const babs = D.materi.filter(m => m.kelas === kl && m.mapel === mp).map(m => m.no_bab).sort((a, b) => a - b);
+  const H = hasilTersaring().filter(h => h.wilayah === kl && h.mapel === mp && h.jenis_tahap === 'manzil');
+  // nilai terbaik per pemain per bab, lalu dirata-rata
+  const best = {};
+  H.forEach(h => { const k = h.id_pemain + '|' + h.no_bab; best[k] = Math.max(best[k] || 0, h.nilai); });
+  const pk = {}; D.pemain.forEach(p => pk[p.id_pemain] = p);
+  const baris = ['X','XI','XII','Umum'].filter(k => F.kelas === 'Semua' || F.kelas === k).map(k => {
+    const cells = babs.map(no => {
+      const v = Object.entries(best).filter(([key]) => { const [id, n] = key.split('|'); return +n === no && pk[id] && pk[id].kelas === k; }).map(([, v]) => v);
+      const a = avg(v);
+      return `<td class="${kls(a)}" title="${v.length} pemain">${a ?? '·'}</td>`;
+    }).join('');
+    return `<tr><th style="position:static;cursor:default">Kelas ${k}</th>${cells}</tr>`;
+  }).join('');
+  const pem = [...new Set(H.map(h => h.id_pemain))].map(id => pk[id]).filter(Boolean).slice(0, 60);
+  const baris2 = pem.map(p => `<tr><td style="white-space:nowrap">${esc(p.nama)} <span class="small">${esc(p.kelas)}</span></td>${babs.map(no => { const v = best[p.id_pemain + '|' + no]; return `<td class="${kls(v)}">${v ?? '·'}</td>`; }).join('')}</tr>`).join('');
+  $('#isi').innerHTML = `<div class="card"><h2>Rata-rata nilai terbaik per bab · ${esc(mp)} kelas ${esc(kl)}</h2>
+    <table class="heat"><tr><th style="position:static">Kelas pemain</th>${babs.map(no => `<th class="num" title="${esc(judulBab(kl, mp, no))}">${no}</th>`).join('')}</tr>${baris}</table>
+    <div class="legend"><span><i class="h3"></i>80 ke atas</span><span><i class="h2"></i>50–79</span><span><i class="h1"></i>di bawah 50</span><span><i class="h0"></i>belum dimainkan</span></div>
+    <p class="small" style="margin-top:8px">${babs.map(no => no + '. ' + esc(judulBab(kl, mp, no))).join(' · ')}</p></div>
+    <div class="card"><h2>Per pemain (nilai terbaik)</h2>${pem.length ? `<table class="heat"><tr><th style="position:static">Pemain</th>${babs.map(no => `<th class="num">${no}</th>`).join('')}</tr>${baris2}</table>` : '<p class="empty">Belum ada pemain di jalur ini dalam filter.</p>'}</div>`;
+}
+
+function tabSoal(){
+  const rows = D.soal.filter(s => !F.jalur || (s.kelas + '|' + s.mapel) === F.jalur).map(s => ({...s, pct: s.n ? Math.round(s.benar / s.n * 100) : 0}))
+    .sort((a, b) => a.pct - b.pct);
+  $('#isi').innerHTML = `<div class="card"><h2>Persentase benar per soal (tersulit di atas)</h2>
+    <p class="small" style="margin:0 0 10px">Soal dengan persentase sangat rendah perlu dicek: mungkin kuncinya keliru, kalimatnya membingungkan, atau materinya memang belum dipahami. Filter kelas pemain dan rentang waktu tidak berlaku di tab ini.</p>
+    <table><tr><th>ID</th><th>Jenis</th><th>Soal</th><th class="num">Dijawab</th><th class="num">% benar</th><th></th></tr>
+    ${rows.map(s => `<tr><td style="white-space:nowrap">${esc(s.id_soal)}</td><td>${esc(s.jenis)}</td><td>${esc(s.pertanyaan)}</td><td class="num">${s.n}</td><td class="num"><b>${s.pct}%</b></td><td><div class="bar"><i style="width:${s.pct}%;background:${s.pct >= 70 ? '#2f9e6e' : s.pct >= 40 ? '#e7b84a' : '#d9534f'}"></i></div></td></tr>`).join('')}</table>
+    ${rows.length ? '' : '<p class="empty">Belum ada jawaban yang terekam.</p>'}</div>`;
+}
+
+function csv(rows){ return rows.map(r => r.map(v => { const s = String(v == null ? '' : v); return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',')).join('\n'); }
+function unduhFile(nama, isi){ const b = new Blob(['﻿' + isi], {type:'text/csv;charset=utf-8'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = nama; document.body.appendChild(a); a.click(); a.remove(); }
+function unduh(){
+  $('#isi').innerHTML = `<div class="card"><h2>Unduh data (CSV, bisa dibuka di Excel)</h2>
+    <p class="small">Data hasil mengikuti filter di atas. Semua data juga tersedia langsung di Google Sheet.</p>
+    <p><button class="btn gold" id="u1">Unduh daftar pemain</button> <button class="btn gold" id="u2">Unduh hasil permainan</button></p></div>`;
+  $('#u1').onclick = () => unduhFile('pemain-rihlah-ilmu.csv', csv([['nama','kelas','kode_lanjut','pertama_main','terakhir_main','permainan','manzil_tuntas','rata_rata','bintang']]
+    .concat(statPemain().map(p => [p.nama, p.kelas, p.kode_lanjut, fmt(p.pertama_main), fmt(p.terakhir_main), p.main, p.tuntas, p.rata ?? '', p.bintang]))));
+  const pk = {}; D.pemain.forEach(p => pk[p.id_pemain] = p);
+  $('#u2').onclick = () => unduhFile('hasil-rihlah-ilmu.csv', csv([['waktu','nama','kelas_pemain','wilayah','mapel','no_bab','judul_bab','tahap','nilai','bintang','durasi_detik']]
+    .concat(hasilTersaring().map(h => [fmt(h.waktu), pk[h.id_pemain].nama, h.kelas_pemain, h.wilayah, h.mapel, h.no_bab, h.jenis_tahap === 'manzil' ? judulBab(h.wilayah, h.mapel, h.no_bab) : 'Munazharah', h.jenis_tahap, h.nilai, h.bintang, h.durasi_detik]))));
+}
+
+function alertBox(msg){ const m = document.createElement('div'); m.className = 'modal'; m.innerHTML = `<div class="card" style="max-width:380px"><p>${esc(msg)}</p><button class="btn gold">OK</button></div>`; document.body.appendChild(m); m.querySelector('button').onclick = () => m.remove(); }
+
+muat();
+</script>
+</body>
+</html>
