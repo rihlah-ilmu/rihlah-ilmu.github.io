@@ -62,6 +62,36 @@ input.txt:focus{outline:none;border-color:var(--gold)}
 .tabs{display:flex;gap:6px;margin-bottom:12px}
 .tabs button{flex:1;border:0;border-radius:12px;padding:10px 4px;background:rgba(255,255,255,.1);color:#cfd6ea;font-weight:800;font-size:14px}
 .tabs button.on{background:var(--gold);color:#3b2b05}
+.bekal{background:linear-gradient(135deg,#fff8e6,#fbecc4);border-radius:18px;padding:14px 16px;margin-bottom:12px;box-shadow:0 6px 18px rgba(0,0,0,.25);color:var(--ink)}
+.bekal .tag{color:#9a6b12}
+.bekal .dep{font-weight:800;font-size:16px;margin-top:4px}
+.bekal .bel{font-size:14px;color:#4a4f5c;margin-top:4px;line-height:1.5}
+.bekal .strk{font-size:12px;font-weight:700;color:#9a6b12;margin-top:8px}
+.kafilah{position:relative;height:64px;margin:0 2px 12px;color:#fff}
+.kafilah .jalan{position:absolute;left:8px;right:8px;top:40px;border-top:3px dashed rgba(255,255,255,.35)}
+.kafilah .kota{position:absolute;top:46px;font-size:11px;font-weight:700;color:#cfd6ea}
+.kafilah .grp{position:absolute;top:6px;font-size:28px;transform:translateX(-50%) scaleX(-1);transition:left .6s ease;white-space:nowrap;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+.kafilah .grp span{display:inline-block}
+.kafilah .grp .bob{animation:bob 1.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-3px)}}
+.evt{text-align:center;padding:30px 18px}
+.evt .big-ic{font-size:72px;line-height:1}
+.shop{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.shop button{background:#fff;border:2px solid var(--line);border-radius:14px;padding:12px 8px;text-align:center;font-weight:700;font-size:13px;color:var(--ink)}
+.shop button .e{font-size:30px;display:block;margin-bottom:4px}
+.shop button.on{border-color:var(--ok);background:#e9f7f0}
+.shop button .h{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-top:2px}
+.lencana{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.lencana span{background:#fbecc4;color:#6b4a0a;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700}
+.lencana span.off{background:#eee7d6;color:#a5a8b3}
+.saran{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;background:#fff6e3;border:1.5px solid #f0d9a6;border-radius:12px;padding:10px 12px;margin-top:8px;font-size:13px;text-align:left;color:var(--ink)}
+.saran b{color:#b5532f}
+.kuat{margin-top:8px}
+.kuat .r{display:flex;align-items:center;gap:8px;font-size:13px;margin-top:6px}
+.kuat .r .nm{width:118px;flex:0 0 118px}
+.kuat .r .tr{flex:1;height:10px;background:#eee4cc;border-radius:99px;overflow:hidden}
+.kuat .r .tr i{display:block;height:100%;border-radius:99px}
+.kuat .r b{width:30px;text-align:right}
 .region{border-radius:20px;padding:18px;color:#fff;position:relative;overflow:hidden;margin-bottom:12px;min-height:118px}
 .region h2{font-size:22px}
 .region .sub{font-size:13px;opacity:.9;margin-top:2px}
@@ -214,9 +244,11 @@ let S = {
   hist: store.get('hist', []),
   kurma: store.get('kurma', 0),
   mute: store.get('mute', false),
-  wil: store.get('wil', null)
+  wil: store.get('wil', null),
+  harian: store.get('harian', {last: '', streak: 0, best: 0, total: 0}),
+  kafilah: store.get('kafilah', {punya: ['unta'], pakai: {kendaraan: 'unta', panji: '', bawaan: ''}})
 };
-function save(){ ['player','prog','hist','kurma','mute','wil'].forEach(k => store.set(k, S[k])); }
+function save(){ ['player','prog','hist','kurma','mute','wil','harian','kafilah'].forEach(k => store.set(k, S[k])); }
 
 /* suara */
 let actx = null;
@@ -423,7 +455,7 @@ async function scrPeta(){
   const tot = items.filter(i => i.ada);
   const wp = tot.length ? Math.round(tot.reduce((s, i) => s + i.pct, 0) / 4 * 100) : 0;
   const semua = items.every(i => i.ada && i.pct >= 1);
-  $('#wil').innerHTML = `<div class="region fade" style="background:${w.warna}">
+  $('#wil').innerHTML = htmlKafilah(w, wp) + `<div id="bh"></div><div class="region fade" style="background:${w.warna}">
       <span class="pct">${wp}%</span>
       <h2>${esc(w.nama)}</h2><div class="sub">Wilayah kelas ${w.kelas} · tujuan: ${esc(w.tujuan)}</div>
       <div class="prog"><i style="width:${wp}%"></i></div>
@@ -442,6 +474,108 @@ async function scrPeta(){
     beep('tap'); scrJalur(w.kelas, it.j.mapel);
   });
   $('#ijz').onclick = () => { if (!semua) { toast('Tuntaskan keempat jalur dulu.'); return; } beep('tap'); mulaiIjazah(w.kelas); };
+  const kf = $('#kfl'); if (kf) kf.onclick = scrPasar;
+  bekalHarian(items.filter(i => i.ada));
+}
+
+/* ======================= BEKAL HARIAN ======================= */
+const hariIni = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const kemarin = () => { const d = new Date(Date.now() - 864e5); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+function seedHari(){ let h = 0; for (const c of hariIni() + (S.player ? S.player.id : '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
+async function bekalHarian(jalurAda){
+  const box = $('#bh'); if (!box || !jalurAda.length) return;
+  const sd = seedHari();
+  const kelas = (S.player && WILAYAH.some(w => w.kelas === S.player.kelas)) ? S.player.kelas : S.wil;
+  const mapel = JALUR[sd % 4].mapel;
+  let d = null; try { d = await getJalur(kelas, mapel); } catch (e) {}
+  if (!d || !$('#bh')) return;
+  const kartu = d.soal.filter(x => x.jenis === 'KARTU');
+  if (!kartu.length) return;
+  const k = kartu[(sd >> 3) % kartu.length];
+  const bab = d.materi.find(m => m.no_bab === k.no_bab);
+  const sudah = S.harian.last === hariIni();
+  const j = jalurInfo(mapel);
+  box.innerHTML = `<div class="bekal fade"><div class="tag">🌅 Bekal Hari Ini · ${j.ikon} ${esc(j.nama)}</div>
+    <div class="dep">${esc(k.pertanyaan)}</div><div class="bel">${esc(k.kunci)}</div>
+    ${bab ? `<div class="small" style="margin-top:4px">Dari manzil ${bab.no_bab}: ${esc(bab.judul_bab)} (kelas ${esc(kelas)})</div>` : ''}
+    ${sudah ? `<div class="strk">✅ Sudah dibaca hari ini · 🔥 ${S.harian.streak} hari berturut-turut</div>`
+            : `<button class="btn gold mt" id="bhok" style="min-height:44px;padding:10px">Sudah kubaca · +2 🌴</button>${S.harian.streak && S.harian.last === kemarin() ? `<div class="strk">🔥 ${S.harian.streak} hari berturut-turut. Jangan putus!</div>` : ''}`}</div>`;
+  if ($('#bhok')) $('#bhok').onclick = () => {
+    const H = S.harian;
+    H.streak = H.last === kemarin() ? H.streak + 1 : 1;
+    H.best = Math.max(H.best || 0, H.streak); H.total = (H.total || 0) + 1; H.last = hariIni();
+    S.kurma += 2; save(); beep('win');
+    const lc = LENCANA.find(l => l.cek() && l.hari === H.streak);
+    toast(lc ? '🏅 Lencana baru: ' + lc.nama : '+2 kurma · ' + H.streak + ' hari berturut-turut');
+    const ch = app.querySelector('.bar .chip'); if (ch) ch.textContent = '🌴 ' + S.kurma + ' kurma';
+    bekalHarian(jalurAda);
+  };
+}
+
+/* ======================= KAFILAH & PASAR ======================= */
+const ASAL = {X: 'Makkah', XI: 'Damaskus', XII: 'Kairo'};
+const BARANG = [
+  {id: 'unta', slot: 'kendaraan', e: '🐪', nama: 'Unta Setia', h: 0},
+  {id: 'unta2', slot: 'kendaraan', e: '🐫', nama: 'Unta Dua Punuk', h: 15},
+  {id: 'kuda', slot: 'kendaraan', e: '🐎', nama: 'Kuda Arab', h: 30},
+  {id: 'keledai', slot: 'kendaraan', e: '🫏', nama: 'Keledai Tangguh', h: 20},
+  {id: 'panji', slot: 'panji', e: '🚩', nama: 'Panji Kafilah', h: 10},
+  {id: 'hilal', slot: 'panji', e: '🌙', nama: 'Panji Hilal', h: 20},
+  {id: 'bintang', slot: 'panji', e: '⭐', nama: 'Panji Bintang', h: 25},
+  {id: 'kitab', slot: 'bawaan', e: '📜', nama: 'Gulungan Kitab', h: 12},
+  {id: 'lentera', slot: 'bawaan', e: '🏮', nama: 'Lentera Malam', h: 12},
+  {id: 'kurma', slot: 'bawaan', e: '🧺', nama: 'Keranjang Kurma', h: 8},
+  {id: 'tenda', slot: 'bawaan', e: '⛺', nama: 'Tenda Musafir', h: 25},
+  {id: 'air', slot: 'bawaan', e: '🏺', nama: 'Kendi Air', h: 15}
+];
+const SLOT = {kendaraan: 'Tunggangan', panji: 'Panji', bawaan: 'Bawaan'};
+const barang = id => BARANG.find(b => b.id === id);
+function kafilahEmoji(){
+  const P = S.kafilah.pakai, out = [];
+  if (P.bawaan && barang(P.bawaan)) out.push(`<span>${barang(P.bawaan).e}</span>`);
+  out.push(`<span class="bob">${(barang(P.kendaraan) || BARANG[0]).e}</span>`);
+  if (P.panji && barang(P.panji)) out.push(`<span>${barang(P.panji).e}</span>`);
+  return out.join('');
+}
+function htmlKafilah(w, wp){
+  const pos = 8 + Math.min(100, Math.max(0, wp)) * 0.84;
+  return `<div class="kafilah fade" id="kfl" role="button" aria-label="Pasar Kafilah">
+    <div class="jalan"></div>
+    <span class="kota" style="left:4px">🕌 ${ASAL[w.kelas]}</span><span class="kota" style="right:4px">🏁 ${esc(w.tujuan)}</span>
+    <div class="grp" style="left:${pos}%">${kafilahEmoji()}</div></div>`;
+}
+function scrPasar(){
+  const K = S.kafilah;
+  app.innerHTML = topbar(true) + `<div class="card fade">
+    <div class="center"><div class="tag">Pasar Kafilah</div><h2 style="font-size:21px;margin-top:4px">Hias kafilahmu</h2>
+    <p class="small">Tukar kurma dengan hiasan. Kafilahmu akan tampil di peta dan berjalan mengikuti kemajuanmu.</p>
+    <div style="font-size:44px;margin:12px 0;transform:scaleX(-1)">${kafilahEmoji()}</div></div>
+    ${Object.keys(SLOT).map(sl => `<h3 class="sec">${SLOT[sl]}</h3><div class="shop">${
+      (sl !== 'kendaraan' ? [`<button data-lepas="${sl}" class="${!K.pakai[sl] ? 'on' : ''}"><span class="e">∅</span>Tanpa ${SLOT[sl].toLowerCase()}<span class="h">${!K.pakai[sl] ? 'Dipakai' : 'Lepas'}</span></button>`] : []).concat(
+      BARANG.filter(b => b.slot === sl).map(b => {
+        const punya = K.punya.includes(b.id), dipakai = K.pakai[sl] === b.id;
+        return `<button data-id="${b.id}" class="${dipakai ? 'on' : ''}"><span class="e">${b.e}</span>${b.nama}<span class="h">${dipakai ? 'Dipakai' : punya ? 'Pakai' : '🌴 ' + b.h}</span></button>`;
+      })).join('')}</div>`).join('')}
+  </div>`;
+  wireTop(scrPeta);
+  app.querySelectorAll('[data-lepas]').forEach(bt => bt.onclick = () => { K.pakai[bt.dataset.lepas] = ''; save(); beep('tap'); scrPasar(); });
+  app.querySelectorAll('[data-id]').forEach(bt => bt.onclick = () => {
+    const b = barang(bt.dataset.id);
+    if (!K.punya.includes(b.id)) {
+      if (S.kurma < b.h) { toast('Kurmamu belum cukup. Butuh ' + b.h + ' kurma.'); beep('no'); return; }
+      if (!confirmKecil(`Tukar ${b.h} kurma dengan ${b.nama}?`, () => { S.kurma -= b.h; K.punya.push(b.id); K.pakai[b.slot] = b.id; save(); beep('win'); toast(b.e + ' ' + b.nama + ' bergabung dengan kafilahmu!'); scrPasar(); })) return;
+      return;
+    }
+    K.pakai[b.slot] = b.id; save(); beep('tap'); scrPasar();
+  });
+}
+function confirmKecil(teks, ya){
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="card center"><p style="font-weight:700">${esc(teks)}</p><div class="duo mt2"><button class="btn plain" id="cn">Batal</button><button class="btn gold" id="cy">Tukar</button></div></div>`;
+  document.body.appendChild(m);
+  m.querySelector('#cn').onclick = () => m.remove();
+  m.querySelector('#cy').onclick = () => { m.remove(); ya(); };
+  return true;
 }
 
 /* ======================= LAYAR: JALUR ======================= */
@@ -525,6 +659,7 @@ function mulai(kelas, mapel, no){
   }
   if (!babak.length || !babak.some(b => b.items.length)) { toast('Soal untuk manzil ini belum tersedia.'); return; }
   G = {kelas, mapel, no, isM, babak, bi: 0, ii: 0, pts: 0, max: 0, log: [], kurma: 0, t0: Date.now(), lentera: 3, dead: false};
+  G.evtAt = !isM && babak.length > 1 && Math.random() < 0.6 ? 1 + Math.floor(Math.random() * (babak.length - 1)) : -1;
   babakIntro();
 }
 
@@ -560,6 +695,7 @@ function wireQuit(){
 }
 
 function babakIntro(){
+  if (G.evtAt === G.bi && !G.evtDone) { G.evtDone = true; return peristiwa(); }
   const b = G.babak[G.bi];
   const nama = G.isI ? 'Ujian Ijazah' : G.isM ? 'Munazharah' : NAMA_JENIS[b.jenis];
   app.innerHTML = hud() + `<div class="card center fade" style="padding:28px 18px">
@@ -593,7 +729,7 @@ function item(){
 
 function jawab(ok, pts, max, logs, pesan, bahas){
   G.pts += pts; G.max += max; G.log.push(...logs);
-  const benar = logs.filter(l => l.benar).length; G.kurma += benar;
+  const benar = logs.filter(l => l.benar).length; G.kurma += benar * (G.badai === G.bi ? 2 : 1);
   beep(ok ? 'ok' : 'no');
   if (G.isM && !ok) { G.lentera--; if (G.lentera <= 0) G.dead = true; }
   const ex = document.createElement('div');
@@ -608,6 +744,42 @@ function jawab(ok, pts, max, logs, pesan, bahas){
 }
 const head = (label) => hud() + `<div class="card fade"><div class="qhead">${label}</div>`;
 function itemLabel(){ const b = G.babak[G.bi]; return (b.jenis === 'MIX' ? 'Soal ' : (NAMA_JENIS[b.jenis] + ' · ')) + (G.ii + 1) + '/' + b.items.length; }
+
+/* --- PERISTIWA DI JALAN --- */
+function peristiwa(){
+  const ulang = (DATA && DATA.soal || []).filter(x => (x.jenis === 'PG' || x.jenis === 'BS') && x.no_bab !== G.no && x.no_bab < G.no);
+  const jenis = shuffle(['oase', 'badai'].concat(ulang.length ? ['musafir'] : []))[0];
+  const kartu = (ic, tag, judul, teks, tombol) => hud() + `<div class="card evt fade"><div class="big-ic">${ic}</div><div class="tag mt">${tag}</div>
+    <h2 style="font-size:22px;margin:6px 0">${judul}</h2><p class="small">${teks}</p>${tombol}</div>`;
+  if (jenis === 'oase') {
+    const n = 2 + Math.floor(Math.random() * 3);
+    G.kurma += n; beep('win');
+    app.innerHTML = kartu('🌴', 'Peristiwa di jalan', 'Oase di tengah gurun!', `Kafilahmu menemukan mata air dan pohon kurma. Kamu memetik <b>${n} kurma</b> sebagai bekal.`, '<button class="btn gold mt2" id="go">Lanjutkan perjalanan</button>');
+  } else if (jenis === 'badai') {
+    G.badai = G.bi; beep('no');
+    app.innerHTML = kartu('🌪️', 'Peristiwa di jalan', 'Badai pasir datang!', 'Kafilah harus bergegas menembus badai. Pada babak berikutnya, setiap jawaban benar memberi <b>2 kurma</b>.', '<button class="btn gold mt2" id="go">Hadapi badai</button>');
+  } else {
+    const s = shuffle(ulang)[0];
+    app.innerHTML = kartu('🧕', 'Peristiwa di jalan', 'Bertemu musafir', `Seorang musafir menguji ingatanmu tentang manzil ${s.no_bab}. Jawab benar untuk mendapat <b>3 kurma</b>. Tidak memengaruhi nilai.`, '<div id="mq" class="mt2"></div>');
+    const opts = s.jenis === 'BS' ? [{t: 'Benar', ok: s.kunci === 'BENAR'}, {t: 'Salah', ok: s.kunci !== 'BENAR'}]
+      : shuffle(['a','b','c','d'].map((x, i) => ({t: s['pilihan_' + x], ok: 'ABCD'[i] === String(s.kunci).toUpperCase()})).filter(o => o.t));
+    $('#mq').innerHTML = `<div class="qtext" style="text-align:left">${esc(s.pertanyaan)}</div>` + opts.map((o, i) => `<button class="opt" data-i="${i}" style="text-align:left">${esc(o.t)}</button>`).join('');
+    app.querySelectorAll('#mq .opt').forEach(bt => bt.onclick = () => {
+      const o = opts[+bt.dataset.i];
+      app.querySelectorAll('#mq .opt').forEach((x, i) => { x.disabled = true; if (opts[i].ok) x.classList.add('right'); });
+      if (!o.ok) bt.classList.add('wrong'); else G.kurma += 3;
+      beep(o.ok ? 'ok' : 'no');
+      const ex = document.createElement('div'); ex.className = 'explain fade ' + (o.ok ? 'ok' : 'no');
+      ex.innerHTML = `<b>${o.ok ? 'Tepat! +3 kurma' : 'Belum tepat'}</b>${esc(s.pembahasan || '')}`;
+      $('#mq').appendChild(ex);
+      const nb = document.createElement('button'); nb.className = 'btn gold mt'; nb.textContent = 'Lanjutkan perjalanan'; nb.id = 'go';
+      $('#mq').appendChild(nb); nb.onclick = () => { beep('tap'); babakIntro(); };
+    });
+    wireQuit(); return;
+  }
+  wireQuit();
+  $('#go').onclick = () => { beep('tap'); babakIntro(); };
+}
 
 /* --- PG --- */
 function gPG(s){
@@ -886,6 +1058,45 @@ function scrSertifikat(kelas){
 }
 
 /* ======================= PASPOR & RAPOR ======================= */
+const LENCANA = [
+  {ikon: '🌅', nama: 'Langkah Pertama', syarat: 'Membaca Bekal Harian pertama kali', cek: () => (S.harian.total || 0) >= 1},
+  {ikon: '🔥', nama: 'Musafir Istiqamah', syarat: 'Bekal Harian 7 hari berturut-turut', hari: 7, cek: () => (S.harian.best || 0) >= 7},
+  {ikon: '🌟', nama: 'Musafir Sejati', syarat: 'Bekal Harian 30 hari berturut-turut', hari: 30, cek: () => (S.harian.best || 0) >= 30},
+  {ikon: '🔖', nama: 'Pengumpul Stempel', syarat: 'Menuntaskan 10 manzil', cek: () => Object.keys(S.prog).filter(k => /\|\d+$/.test(k) && S.prog[k].stars >= 1).length >= 10},
+  {ikon: '⭐', nama: 'Mumtaz', syarat: 'Meraih bintang tiga di 5 manzil', cek: () => Object.keys(S.prog).filter(k => /\|\d+$/.test(k) && S.prog[k].stars >= 3).length >= 5},
+  {ikon: '📚', nama: 'Pecinta Kitab', syarat: 'Memenangkan 4 munazharah', cek: () => Object.keys(S.prog).filter(k => k.endsWith('|M') && S.prog[k].best >= 70).length >= 4},
+  {ikon: '📜', nama: 'Berijazah', syarat: 'Meraih satu ijazah', cek: () => Object.keys(S.prog).some(k => k.endsWith('|I') && S.prog[k].best >= 70)},
+  {ikon: '🐫', nama: 'Kafilah Megah', syarat: 'Memiliki 5 hiasan kafilah', cek: () => S.kafilah.punya.length >= 6}
+];
+function grafikNilai(H){
+  if (H.length < 2) return `<p class="small mt">Mainkan minimal dua kali untuk melihat grafik perkembanganmu. Nilai terakhir: <b>${H.length ? H[0].nilai : '-'}</b></p>`;
+  const W = 320, T = 130, L = 26, B = 18, n = H.length;
+  const x = i => L + (W - L - 8) * (n === 1 ? 0 : i / (n - 1)), y = v => 8 + (T - B - 8) * (1 - v / 100);
+  const pts = H.map((h, i) => `${x(i).toFixed(1)},${y(h.nilai).toFixed(1)}`).join(' ');
+  const a = H.slice(0, Math.ceil(n / 2)), b = H.slice(Math.floor(n / 2));
+  const rata = arr => Math.round(arr.reduce((s, h) => s + h.nilai, 0) / arr.length);
+  const d = rata(b) - rata(a);
+  const pesan = d >= 5 ? `📈 Nilaimu naik rata-rata ${d} poin. Hebat!` : d <= -5 ? `📉 Nilaimu turun rata-rata ${-d} poin. Coba ulangi Bekal Ilmu sebelum bermain.` : '➡️ Nilaimu stabil. Tantang dirimu meraih bintang tiga!';
+  return `<svg viewBox="0 0 ${W} ${T}" width="100%" style="margin-top:8px" role="img" aria-label="Grafik nilai ${n} permainan terakhir">
+    ${[0, 50, 100].map(v => `<line x1="${L}" x2="${W - 8}" y1="${y(v)}" y2="${y(v)}" stroke="#e7dfca"/><text x="${L - 5}" y="${y(v) + 4}" font-size="10" text-anchor="end" fill="#8a8e99">${v}</text>`).join('')}
+    <line x1="${L}" x2="${W - 8}" y1="${y(70)}" y2="${y(70)}" stroke="#2e9e7a" stroke-dasharray="4 4"/><text x="${W - 8}" y="${y(70) - 4}" font-size="9" text-anchor="end" fill="#2e9e7a">target 70</text>
+    <polyline points="${pts}" fill="none" stroke="#d9a03f" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${H.map((h, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(h.nilai).toFixed(1)}" r="${i === n - 1 ? 4.5 : 3}" fill="${h.nilai >= 70 ? '#2e9e7a' : '#c0603f'}"><title>${h.nilai}</title></circle>`).join('')}
+    <text x="${L}" y="${T - 3}" font-size="10" fill="#8a8e99">${n} permainan terakhir</text>
+  </svg><p class="small" style="margin-top:4px">${pesan}</p>`;
+}
+function kekuatan(){
+  const rows = JALUR.map(j => {
+    const v = Object.keys(S.prog).filter(k => k.split('|')[1] === j.mapel && /\|\d+$/.test(k)).map(k => S.prog[k].best);
+    return {j, n: v.length, avg: v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null};
+  }).filter(r => r.n);
+  if (!rows.length) return '';
+  const top = rows.slice().sort((a, b) => b.avg - a.avg);
+  const kuat = top[0], lemah = top.length > 1 ? top[top.length - 1] : null;
+  return `<h3 class="sec">Kekuatan per jalur</h3><div class="kuat">${rows.map(r => `<div class="r"><span class="nm">${r.j.ikon} ${esc(r.j.nama)}</span><span class="tr"><i style="width:${r.avg}%;background:${r.j.warna}"></i></span><b>${r.avg}</b></div>`).join('')}</div>
+    <p class="small mt">💪 Paling kuat: <b>${esc(kuat.j.nama)}</b>${lemah && lemah.avg < kuat.avg ? ` · Perlu latihan: <b>${esc(lemah.j.nama)}</b>` : ''}</p>`;
+}
+
 function scrPaspor(){
   const p = S.player;
   const keys = Object.keys(S.prog);
@@ -900,7 +1111,7 @@ function scrPaspor(){
     const j = jalurInfo(g.mp);
     const man = g.rows.filter(r => r.no !== 'M').sort((a, b) => a.no - b.no);
     const avg = man.length ? Math.round(man.reduce((s, r) => s + r.best, 0) / man.length) : 0;
-    man.forEach(r => { if (r.best < 70) lemah.push(`${j.nama} kelas ${g.kl}, manzil ${r.no} (${r.best})`); });
+    man.forEach(r => { if (r.best < 70) lemah.push({jalur: j.nama, ikon: j.ikon, kl: g.kl, mp: g.mp, no: +r.no, best: r.best}); });
     const mz = g.rows.find(r => r.no === 'M');
     return `<h3 class="sec">${j.ikon} ${j.nama} · Kelas ${g.kl} <span class="small">rata-rata ${avg}</span></h3>` +
       man.map(r => `<div class="row"><span>Manzil ${r.no}</span><span>${starHTML(r.stars)} <b>${r.best}</b> <span class="small">· ${r.tries}×</span></span></div>`).join('') +
@@ -914,6 +1125,10 @@ function scrPaspor(){
       <div class="row"><span>📚 Kitab koleksi</span><b>${kitab}</b></div>
       <div class="row"><span>📜 Ijazah</span><b>${ijazah.length}</b></div>
       ${ijazah.map(w => `<button class="btn plain mt" data-ij="${w.kelas}" style="min-height:42px;padding:10px">📜 Lihat ijazah ${esc(w.nama)} (kelas ${w.kelas})</button>`).join('')}
+      <h3 class="sec">Lencana</h3>
+      <div class="lencana">${LENCANA.map(l => `<span class="${l.cek() ? '' : 'off'}" title="${esc(l.syarat)}">${l.cek() ? l.ikon : '🔒'} ${esc(l.nama)}</span>`).join('')}</div>
+      <p class="small mt">🔥 Bekal Harian: ${S.harian.last === hariIni() || S.harian.last === kemarin() ? S.harian.streak : 0} hari berturut-turut · rekor ${S.harian.best || 0} hari</p>
+      <button class="btn plain mt" id="psr" style="min-height:42px;padding:10px">🐪 Pasar Kafilah</button>
       <h3 class="sec">Kode Lanjut</h3>
       <div class="kode">${esc(p.kode)}</div>
       <p class="small mt">Catat kode ini untuk melanjutkan perjalanan di HP lain. Ini bukan kata sandi.</p>
@@ -921,8 +1136,9 @@ function scrPaspor(){
     </div>
     <div class="card mt fade">
       <div class="tag">Rapor Perjalanan</div>
-      ${last.length ? `<h3 class="sec">10 permainan terakhir</h3><div class="bars">${last.map(h => `<i style="height:${Math.max(4, h.nilai)}%"><span>${h.nilai}</span></i>`).join('')}</div>` : '<p class="small mt">Belum ada perjalanan. Ayo mulai dari manzil pertama!</p>'}
-      ${lemah.length ? `<h3 class="sec">Perlu diulang (nilai di bawah 70)</h3>${lemah.map(x => `<div class="row"><span>${esc(x)}</span></div>`).join('')}` : (last.length ? '<p class="small mt">Tidak ada manzil yang nilainya di bawah 70. Pertahankan!</p>' : '')}
+      ${last.length ? `<h3 class="sec">Perkembangan nilai</h3>${grafikNilai(S.hist.slice(-20))}` : '<p class="small mt">Belum ada perjalanan. Ayo mulai dari manzil pertama!</p>'}
+      ${kekuatan()}
+      ${lemah.length ? `<h3 class="sec">Saran latihan</h3>${lemah.sort((a, b) => a.best - b.best).slice(0, 5).map((x, i) => `<button class="saran" data-sr="${i}"><span>${x.ikon} ${esc(x.jalur)} kelas ${x.kl} · manzil ${x.no}<br><span class="small">Nilaimu <b>${x.best}</b>. Ulangi supaya minimal 70.</span></span><span>↻</span></button>`).join('')}` : (last.length ? '<p class="small mt">Tidak ada manzil yang nilainya di bawah 70. Pertahankan!</p>' : '')}
       ${WILAYAH.filter(w => S.prog[keyOf(w.kelas, 'Ujian', 'I')]).map(w => { const u = S.prog[keyOf(w.kelas, 'Ujian', 'I')]; return `<h3 class="sec">📜 Ujian Ijazah · Kelas ${w.kelas}</h3><div class="row"><span>${u.best >= 70 ? 'Lulus' : 'Belum lulus'}</span><span><b>${u.best}</b> <span class="small">· ${u.tries}×</span></span></div>`; }).join('')}
       ${rapor}
     </div>
@@ -931,13 +1147,16 @@ function scrPaspor(){
   wireTop(scrPeta);
   $('#cp').onclick = async () => { try { await navigator.clipboard.writeText(p.kode); toast('Kode disalin'); } catch (e) { toast('Salin manual: ' + p.kode); } };
   app.querySelectorAll('[data-ij]').forEach(b => b.onclick = () => scrSertifikat(b.dataset.ij));
+  const lm = lemah.slice(0, 5);
+  app.querySelectorAll('[data-sr]').forEach(b => b.onclick = () => { const x = lm[+b.dataset.sr]; beep('tap'); scrJalur(x.kl, x.mp); });
+  $('#psr').onclick = scrPasar;
   $('#ed').onclick = () => scrIdentitas(true);
   $('#gp').onclick = () => {
     const m = document.createElement('div'); m.className = 'modal';
     m.innerHTML = `<div class="card center"><h3>Ganti pemain?</h3><p class="small mt">Perjalanan ${esc(p.nama)} akan dihapus dari HP ini. Catat dulu Kode Lanjut <b>${esc(p.kode)}</b> agar bisa dipulihkan.</p><button class="btn gold mt2" id="mb">Batal</button><button class="btn plain mt" id="my">Ya, ganti pemain</button></div>`;
     document.body.appendChild(m);
     m.querySelector('#mb').onclick = () => m.remove();
-    m.querySelector('#my').onclick = () => { m.remove(); ['player','prog','hist','kurma','wil'].forEach(store.del); S = {player:null, prog:{}, hist:[], kurma:0, mute:S.mute, wil:null}; scrGerbang(); };
+    m.querySelector('#my').onclick = () => { m.remove(); ['player','prog','hist','kurma','wil','harian','kafilah'].forEach(store.del); S = {player:null, prog:{}, hist:[], kurma:0, mute:S.mute, wil:null, harian:{last:'', streak:0, best:0, total:0}, kafilah:{punya:['unta'], pakai:{kendaraan:'unta', panji:'', bawaan:''}}}; scrGerbang(); };
   };
 }
 
