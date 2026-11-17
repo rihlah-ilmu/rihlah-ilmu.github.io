@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0e1a33">
 <title>Rihlah Ilmu</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Amiri:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --night:#0e1a33;--night2:#14213d;--sand:#f4e3c1;--card:#fffdf6;--ink:#1d2433;--muted:#6b6f7c;
@@ -73,6 +73,21 @@ input::placeholder{text-transform:none}
 .info.selesai{border-left-color:var(--ok)}
 .dalil .putar{display:inline-flex;align-items:center;gap:6px;margin:6px 6px 0 0;border:0;border-radius:999px;padding:7px 12px;background:#2e9e7a;color:#fff;font-weight:700;font-size:13px}
 .dalil .putar.on{background:#c0603f}
+.mrt-ctl{position:sticky;top:0;z-index:3;background:var(--card);border-radius:18px;padding:12px 14px;box-shadow:0 6px 18px rgba(0,0,0,.3);margin-bottom:10px;color:var(--ink)}
+.mrt-ctl .row1{display:flex;align-items:center;gap:12px}
+.mrt-ctl .pp{width:56px;height:56px;flex:0 0 56px;border-radius:50%;border:0;background:#2e9e7a;color:#fff;font-size:24px;box-shadow:0 4px 0 #1f6e55}
+.mrt-ctl .pp.on{background:#c0603f;box-shadow:0 4px 0 #8a4129}
+.mrt-ctl h2{font-size:18px}
+.mrt-ctl select{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:8px;font:inherit;font-size:13px;background:#fff;margin-top:8px}
+.seg{display:flex;gap:6px;margin-top:8px;align-items:center;font-size:12px;font-weight:700;color:var(--muted)}
+.seg button{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:5px 11px;font-weight:700;font-size:12px;color:var(--ink)}
+.seg button.on{background:#14213d;color:#fff;border-color:#14213d}
+.ayat{background:var(--card);border-radius:16px;padding:14px;margin-bottom:10px;border:2px solid transparent;color:var(--ink);transition:border-color .2s,background .2s;cursor:pointer}
+.ayat.on{border-color:#2e9e7a;background:#eefaf5}
+.ayat .no{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#fbecc4;color:#6b4a0a;font-weight:800;font-size:12px}
+.ayat .ar{font-family:'Amiri',serif;font-size:27px;line-height:2.1;direction:rtl;text-align:right;margin-top:4px}
+.ayat .tr{font-size:14px;color:#4a4f5c;line-height:1.55;margin-top:6px}
+.ayat .tr b{color:#9a6b12}
 .bekal{background:linear-gradient(135deg,#fff8e6,#fbecc4);border-radius:18px;padding:14px 16px;margin-bottom:12px;box-shadow:0 6px 18px rgba(0,0,0,.25);color:var(--ink)}
 .bekal .tag{color:#9a6b12}
 .bekal .dep{font-weight:800;font-size:16px;margin-top:4px}
@@ -447,9 +462,9 @@ function topbar(back){
 }
 function wireTop(backFn){
   if ($('#back')) $('#back').onclick = backFn;
-  if ($('#home')) $('#home').onclick = scrGerbang;
+  if ($('#home')) $('#home').onclick = () => { hentiMurattal(); scrGerbang(); };
   $('#mute').onclick = () => { S.mute = !S.mute; save(); $('#mute').textContent = S.mute ? '🔇' : '🔊'; };
-  $('#pas').onclick = scrPaspor;
+  $('#pas').onclick = () => { hentiMurattal(); scrPaspor(); };
 }
 
 function jalurPct(kelas, mapel, babCount){
@@ -663,24 +678,74 @@ function rujukanAyat(teks){
 function tombolMurattal(teks){
   const r = rujukanAyat(teks); if (!r.length) return '';
   tombolMurattal.r = r;
-  return '<div>' + r.map((x, i) => `<button class="putar" data-mr="${i}">▶ ${esc(x.label)}</button>`).join('') + '</div>';
+  return '<div>' + r.map((x, i) => `<button class="putar" data-mr="${i}">🎧 ${esc(x.label)}</button>`).join('') + '</div>';
 }
-let audioM = null;
-function hentiMurattal(){ if (audioM) { audioM.pause(); audioM = null; } document.querySelectorAll('.putar.on').forEach(b => { b.classList.remove('on'); b.textContent = '▶ ' + b.textContent.slice(2); }); }
-function wireMurattal(){
-  document.querySelectorAll('[data-mr]').forEach(bt => bt.onclick = () => {
-    const sedang = bt.classList.contains('on'); hentiMurattal(); if (sedang) return;
-    const r = tombolMurattal.r[+bt.dataset.mr]; let a = r.a;
-    bt.classList.add('on'); bt.textContent = '■ ' + bt.textContent.slice(2);
-    const main = () => {
-      if (a > r.b || !bt.classList.contains('on')) { hentiMurattal(); return; }
-      audioM = new Audio(`https://everyayah.com/data/Alafasy_128kbps/${String(r.s).padStart(3, '0')}${String(a).padStart(3, '0')}.mp3`);
-      audioM.onended = () => { a++; main(); };
-      audioM.onerror = () => { hentiMurattal(); toast('Audio gagal dimuat. Periksa internetmu.'); };
-      audioM.play().catch(() => { hentiMurattal(); toast('Audio gagal diputar.'); });
-    };
-    main();
-  });
+function wireMurattal(back){
+  document.querySelectorAll('[data-mr]').forEach(bt => bt.onclick = () => { beep('tap'); scrMurattal(tombolMurattal.r[+bt.dataset.mr], back); });
+}
+
+/* --- Ruang Murattal: teks Arab, terjemah Kemenag, sorot ayat, mode hafalan, pilihan qari --- */
+const QARI = [
+  {id: 'Alafasy_128kbps', nama: 'Mishary Rashid Alafasy'},
+  {id: 'Husary_128kbps', nama: 'Mahmoud Khalil Al-Husary (tartil)'},
+  {id: 'Husary_Muallim_128kbps', nama: 'Al-Husary Mu\'allim (mode belajar)'},
+  {id: 'Abdul_Basit_Murattal_192kbps', nama: 'Abdul Basit Abdus Samad'},
+  {id: 'Minshawy_Murattal_128kbps', nama: 'Muhammad Siddiq Al-Minshawi'}
+];
+const SETM = Object.assign({qari: 'Alafasy_128kbps', ulang: 1}, store.get('murattal', {}));
+let audioM = null, PM = null;
+function hentiMurattal(){ if (audioM) { audioM.onended = null; audioM.onerror = null; audioM.pause(); audioM = null; } if (PM) PM.main = false; }
+async function teksAyat(s, a, b){
+  const ck = `ayat_${s}_${a}_${b}`, c = store.get(ck, null);
+  if (c) return c;
+  const r = await fetch(`https://api.alquran.cloud/v1/surah/${s}/editions/quran-uthmani,id.indonesian?offset=${a - 1}&limit=${b - a + 1}`);
+  const j = await r.json();
+  if (j.code !== 200 || !Array.isArray(j.data)) throw new Error('teks');
+  const [ar, id] = j.data;
+  const out = ar.ayahs.map((x, i) => ({no: x.numberInSurah,
+    ar: (s !== 1 && s !== 9 && x.numberInSurah === 1) ? x.text.replace(/^﻿?بِسْمِ\s+ٱللَّهِ\s+ٱلرَّحْمَٰنِ\s+ٱلرَّحِيمِ\s*/, '') : x.text,
+    id: (id.ayahs[i] || {}).text || ''}));
+  store.set(ck, out); return out;
+}
+async function scrMurattal(ref, back){
+  hentiMurattal();
+  PM = {ref, a: ref.a, rep: 0, main: false};
+  const nama = SURAH[ref.s - 1];
+  const ay = []; for (let n = ref.a; n <= ref.b; n++) ay.push(n);
+  app.innerHTML = topbar(true) + `<div class="mrt-ctl fade"><div class="row1">
+      <button class="pp" id="pp" aria-label="Putar">▶</button>
+      <div style="flex:1;min-width:0"><div class="tag">Ruang Murattal</div><h2>QS. ${esc(nama)} [${ref.s}]: ${ref.a}${ref.b > ref.a ? '–' + ref.b : ''}</h2><div class="small" id="st">Ketuk ▶ atau ketuk salah satu ayat.</div></div></div>
+      <select id="qr" aria-label="Pilih qari">${QARI.map(q => `<option value="${q.id}" ${q.id === SETM.qari ? 'selected' : ''}>🎙 ${esc(q.nama)}</option>`).join('')}</select>
+      <div class="seg">Ulangi tiap ayat: ${[1, 3, 5].map(n => `<button data-u="${n}" class="${SETM.ulang === n ? 'on' : ''}">${n}×</button>`).join('')}<span style="margin-left:auto">${SETM.ulang > 1 ? '🧠 hafalan' : ''}</span></div>
+    </div>
+    <div id="ays">${ay.map(n => `<div class="ayat" data-a="${n}"><span class="no">${n}</span><div class="ar">…</div><div class="tr small">Memuat teks…</div></div>`).join('')}</div>
+    <p class="dim center" style="font-size:12px;margin:6px 0 20px">Teks: Mushaf Utsmani · Terjemah: Kemenag RI (via alquran.cloud) · Audio: everyayah.com</p>`;
+  wireTop(() => { hentiMurattal(); back(); });
+  const tandai = () => { document.querySelectorAll('.ayat').forEach(el => el.classList.toggle('on', PM.main && +el.dataset.a === PM.a)); const on = document.querySelector('.ayat.on'); if (on) on.scrollIntoView({behavior: 'smooth', block: 'center'}); };
+  const tombol = () => { const b = $('#pp'); if (!b) return; b.classList.toggle('on', PM.main); b.textContent = PM.main ? '⏸' : '▶'; };
+  const status = t => { const e = $('#st'); if (e) e.textContent = t; };
+  const putar = () => {
+    if (!PM.main) return;
+    if (PM.a > ref.b) { PM.main = false; PM.a = ref.a; tombol(); tandai(); status('Selesai. Ketuk ▶ untuk mengulang.'); return; }
+    tandai(); status(`Ayat ${PM.a}${SETM.ulang > 1 ? ` · pengulangan ${PM.rep + 1}/${SETM.ulang}` : ''}`);
+    if (audioM) { audioM.onended = null; audioM.pause(); }
+    audioM = new Audio(`https://everyayah.com/data/${SETM.qari}/${String(ref.s).padStart(3, '0')}${String(PM.a).padStart(3, '0')}.mp3`);
+    audioM.onended = () => { PM.rep++; if (PM.rep >= SETM.ulang) { PM.rep = 0; PM.a++; } putar(); };
+    audioM.onerror = () => { PM.main = false; tombol(); tandai(); status('Audio gagal dimuat. Periksa internetmu atau pilih qari lain.'); };
+    audioM.play().catch(e => { PM.main = false; tombol(); tandai(); status(e && e.name === 'NotAllowedError' ? 'Ketuk ▶ untuk memutar.' : 'Audio gagal dimuat. Periksa internetmu atau pilih qari lain.'); });
+  };
+  const mulaiDari = n => { PM.a = n; PM.rep = 0; PM.main = true; tombol(); putar(); };
+  $('#pp').onclick = () => { if (PM.main) { hentiMurattal(); tombol(); tandai(); status('Dijeda di ayat ' + PM.a + '.'); } else mulaiDari(PM.a > ref.b ? ref.a : PM.a); };
+  $('#qr').onchange = e => { SETM.qari = e.target.value; store.set('murattal', SETM); if (PM.main) { PM.rep = 0; putar(); } };
+  app.querySelectorAll('[data-u]').forEach(b => b.onclick = () => { SETM.ulang = +b.dataset.u; store.set('murattal', SETM); PM.rep = 0;
+    app.querySelectorAll('[data-u]').forEach(x => x.classList.toggle('on', x === b)); b.parentElement.lastElementChild.textContent = SETM.ulang > 1 ? '🧠 hafalan' : ''; });
+  app.querySelectorAll('.ayat').forEach(el => el.onclick = () => { beep('tap'); mulaiDari(+el.dataset.a); });
+  try {
+    const t = await teksAyat(ref.s, ref.a, ref.b);
+    t.forEach(x => { const el = document.querySelector(`.ayat[data-a="${x.no}"]`); if (!el) return; el.querySelector('.ar').textContent = x.ar; el.querySelector('.tr').innerHTML = `<b>Artinya:</b> ${esc(x.id)}`; });
+  } catch (e) {
+    document.querySelectorAll('.ayat').forEach(el => { el.querySelector('.ar').textContent = ''; el.querySelector('.tr').textContent = `Ayat ${el.dataset.a} · teks belum bisa dimuat (perlu internet). Audio tetap bisa diputar.`; });
+  }
 }
 
 /* ======================= KAFILAH & PASAR ======================= */
@@ -794,7 +859,7 @@ function scrBekal(kelas, mapel, no){
     <button class="btn gold mt2" id="go">Siap Diuji</button>
     ${kartu.length ? `<button class="btn ghost mt" id="kk">Ulang dengan Kartu Kilat (${kartu.length})</button>` : ''}`;
   wireTop(() => { hentiMurattal(); scrJalur(kelas, mapel); });
-  wireMurattal();
+  wireMurattal(() => scrBekal(kelas, mapel, no));
   $('#go').onclick = () => { hentiMurattal(); beep('tap'); mulai(kelas, mapel, no); };
   if (kartu.length) $('#kk').onclick = () => scrKartu(kelas, mapel, no, shuffle(kartu));
 }

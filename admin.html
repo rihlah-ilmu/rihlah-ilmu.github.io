@@ -154,7 +154,7 @@ function ringkasan(){
     const [kl, mp, no] = k.split('|');
     return `<tr><td>${esc(mp)} ${kl} · ${no}. ${esc(judulBab(kl, mp, +no))}</td><td class="num">${v.length}</td><td class="num">${avg(v)}</td></tr>`;
   }).join('');
-  $('#isi').innerHTML = `<div class="kpis">
+  $('#isi').innerHTML = pekanIni() + `<div class="kpis">
       <div class="kpi"><b>${P.length}</b><span>Pemain terdaftar</span></div>
       <div class="kpi"><b>${aktif7.size}</b><span>Aktif 7 hari terakhir</span></div>
       <div class="kpi"><b>${mainHariIni}</b><span>Permainan hari ini</span></div>
@@ -164,6 +164,37 @@ function ringkasan(){
     </div>
     <div class="card"><h2>Per kelas pemain</h2><table><tr><th>Kelas</th><th class="num">Pemain</th><th class="num">Permainan</th><th class="num">Rata-rata nilai</th></tr>${perKelas}</table></div>
     <div class="card"><h2>Manzil paling banyak dimainkan</h2>${top ? `<table><tr><th>Manzil</th><th class="num">Dimainkan</th><th class="num">Rata-rata</th></tr>${top}</table>` : '<p class="empty">Belum ada permainan dalam filter ini.</p>'}</div>`;
+}
+
+function pekanIni(){
+  const now = Date.now(), d7 = now - 7 * 864e5, d14 = now - 14 * 864e5;
+  const pk = {}; D.pemain.forEach(p => pk[p.id_pemain] = p);
+  const ok = h => pk[h.id_pemain] && !pk[h.id_pemain].disembunyikan && (F.kelas === 'Semua' || h.kelas_pemain === F.kelas) && cocokRombel(pk[h.id_pemain]);
+  const A = D.hasil.filter(h => ok(h) && new Date(h.waktu) >= d7), B = D.hasil.filter(h => ok(h) && new Date(h.waktu) >= d14 && new Date(h.waktu) < d7);
+  const ua = new Set(A.map(h => h.id_pemain)).size, ub = new Set(B.map(h => h.id_pemain)).size;
+  const ra = avg(A.map(h => h.nilai)), rb = avg(B.map(h => h.nilai));
+  const delta = (x, y, suf = '') => y == null || x == null ? '' : x === y ? '<span class="small">sama</span>' : `<span style="color:${x > y ? '#17573a' : '#a33'};font-size:13px;font-weight:700">${x > y ? '▲' : '▼'} ${Math.abs(x - y)}${suf}</span>`;
+  const baru = D.pemain.filter(p => !p.disembunyikan && (F.kelas === 'Semua' || p.kelas === F.kelas) && cocokRombel(p) && new Date(p.pertama_main) >= d7).length;
+  const lama = D.pemain.filter(p => !p.disembunyikan && (F.kelas === 'Semua' || p.kelas === F.kelas) && cocokRombel(p) && p.terakhir_main && new Date(p.terakhir_main) < d7 && new Date(p.terakhir_main) >= now - 30 * 864e5);
+  const per = {};
+  A.filter(h => h.jenis_tahap === 'manzil').forEach(h => { const k = h.wilayah + '|' + h.mapel + '|' + h.no_bab; (per[k] = per[k] || []).push(h.nilai); });
+  const sulit = Object.entries(per).filter(([, v]) => v.length >= 3).map(([k, v]) => ({k, n: v.length, r: avg(v)})).sort((a, b) => a.r - b.r).slice(0, 3);
+  const tugas = (D.tugas || []).filter(t => t.aktif).map(t => ({t, st: statusTugas(t)})).filter(x => x.st.peserta.length).sort((a, b) => a.st.sudah.length / a.st.peserta.length - b.st.sudah.length / b.st.peserta.length).slice(0, 3);
+  const soal = D.soal.filter(x => x.n >= 5).map(x => ({...x, pct: Math.round(x.benar / x.n * 100)})).sort((a, b) => a.pct - b.pct).slice(0, 3);
+  return `<div class="card" style="border-left:6px solid var(--gold)"><h2>📅 Ringkasan 7 hari terakhir</h2>
+    <div class="kpis" style="margin-bottom:6px">
+      <div class="kpi" style="background:#faf7f0"><b>${ua}</b><span>pemain aktif ${delta(ua, ub)}</span></div>
+      <div class="kpi" style="background:#faf7f0"><b>${A.length}</b><span>permainan ${delta(A.length, B.length)}</span></div>
+      <div class="kpi" style="background:#faf7f0"><b>${ra ?? '-'}</b><span>rata-rata nilai ${delta(ra, rb)}</span></div>
+      <div class="kpi" style="background:#faf7f0"><b>${baru}</b><span>pemain baru</span></div>
+    </div>
+    <p class="small" style="margin:0 0 10px">Panah membandingkan dengan 7 hari sebelumnya. Mengikuti filter kelas dan rombel.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;font-size:14px">
+      <div><b>🔻 Manzil terlemah pekan ini</b>${sulit.length ? '<ol style="margin:6px 0 0;padding-left:18px">' + sulit.map(x => { const [kl, mp, no] = x.k.split('|'); return `<li>${esc(mp)} ${kl} · ${no}. ${esc(judulBab(kl, mp, +no))} <span class="small">(rata-rata ${x.r}, ${x.n}×)</span></li>`; }).join('') + '</ol><p class="small" style="margin:4px 0 0">Kandidat untuk dijelaskan ulang di kelas.</p>' : '<p class="small">Belum cukup data (minimal 3 permainan per manzil).</p>'}</div>
+      <div><b>📌 Tugas paling tertinggal</b>${tugas.length ? '<ul style="margin:6px 0 0;padding-left:18px">' + tugas.map(x => `<li>${esc(x.t.judul)} <span class="small">· ${x.st.sudah.length}/${x.st.peserta.length} selesai, ${x.st.belum.length} belum mulai</span></li>`).join('') + '</ul>' : '<p class="small">Tidak ada tugas aktif.</p>'}</div>
+      <div><b>❓ Soal paling sering keliru</b>${soal.length ? '<ul style="margin:6px 0 0;padding-left:18px">' + soal.map(x => `<li>${esc(String(x.pertanyaan).slice(0, 70))}${String(x.pertanyaan).length > 70 ? '…' : ''} <span class="small">(${x.pct}% benar)</span></li>`).join('') + '</ul><p class="small" style="margin:4px 0 0">Cek kuncinya di tab Analisis Soal.</p>' : '<p class="small">Belum cukup data.</p>'}</div>
+      <div><b>💤 Lama tidak bermain</b><p class="small" style="margin:6px 0 0">${lama.length ? `${lama.length} pemain aktif bulan ini tetapi tidak bermain 7 hari terakhir: ${lama.slice(0, 8).map(p => esc(p.nama)).join(', ')}${lama.length > 8 ? ', …' : ''}` : 'Tidak ada. Semua pemain bulan ini masih aktif.'}</p></div>
+    </div></div>`;
 }
 
 function statPemain(){
