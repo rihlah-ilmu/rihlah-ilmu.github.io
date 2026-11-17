@@ -53,8 +53,9 @@ tr.hid td{opacity:.45}
 <header><h1>Rihlah <span>Ilmu</span> · Admin</h1><span class="upd" id="upd"></span><button class="btn gold" id="ref">Muat ulang</button></header>
 <div class="wrap" id="main"><p class="empty">Memuat data…</p></div>
 
+<script src="config.js"></script>
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbwtj-MGtMM9xZy-qDp-bWLBSrV5Rm45uQ1ZbLT2Y2S2YftOSAFMvxqlkEE8etB_HxRCPQ/exec";            // isi dengan URL Web App yang sama dengan index.html
+const API_URL = /^https:\/\//.test(String(window.RIHLAH_API_URL || "").trim()) ? String(window.RIHLAH_API_URL).trim() : "";   // diatur di file config.js
 const DEMO_ADMIN = /*DEMO_ADMIN*/null;
 
 const $ = s => document.querySelector(s);
@@ -144,6 +145,7 @@ function ringkasan(){
       <div class="kpi"><b>${mainHariIni}</b><span>Permainan hari ini</span></div>
       <div class="kpi"><b>${H.length}</b><span>Permainan dalam filter</span></div>
       <div class="kpi"><b>${avg(H.map(h => h.nilai)) ?? '-'}</b><span>Rata-rata nilai</span></div>
+      <div class="kpi"><b>${new Set(D.hasil.filter(h => h.jenis_tahap === 'ijazah' && h.nilai >= 70).map(h => h.id_pemain + h.wilayah)).size}</b><span>Ijazah diraih</span></div>
     </div>
     <div class="card"><h2>Per kelas pemain</h2><table><tr><th>Kelas</th><th class="num">Pemain</th><th class="num">Permainan</th><th class="num">Rata-rata nilai</th></tr>${perKelas}</table></div>
     <div class="card"><h2>Manzil paling banyak dimainkan</h2>${top ? `<table><tr><th>Manzil</th><th class="num">Dimainkan</th><th class="num">Rata-rata</th></tr>${top}</table>` : '<p class="empty">Belum ada permainan dalam filter ini.</p>'}</div>`;
@@ -194,7 +196,7 @@ function detail(id){
   const m = document.createElement('div'); m.className = 'modal';
   m.innerHTML = `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><h2 style="margin:0">${esc(p.nama)}</h2><p class="small">Kelas ${esc(p.kelas)} · kode ${esc(p.kode_lanjut)} · mulai ${fmt(p.pertama_main)}</p></div><button class="btn" id="tt">Tutup</button></div>
     <table><tr><th>Waktu</th><th>Jalur</th><th>Tahap</th><th class="num">Nilai</th><th class="num">Durasi</th></tr>
-    ${hs.map(h => `<tr><td>${fmt(h.waktu)}</td><td>${esc(h.mapel)} ${esc(h.wilayah)}</td><td>${h.jenis_tahap === 'manzil' ? h.no_bab + '. ' + esc(judulBab(h.wilayah, h.mapel, h.no_bab)) : 'Munazharah'}</td><td class="num"><b>${h.nilai}</b></td><td class="num">${Math.round(h.durasi_detik / 60)} mnt</td></tr>`).join('')}</table>
+    ${hs.map(h => `<tr><td>${fmt(h.waktu)}</td><td>${esc(h.mapel)} ${esc(h.wilayah)}</td><td>${h.jenis_tahap === 'manzil' ? h.no_bab + '. ' + esc(judulBab(h.wilayah, h.mapel, h.no_bab)) : h.jenis_tahap === 'ijazah' ? '📜 Ujian Ijazah' : 'Munazharah'}</td><td class="num"><b>${h.nilai}</b></td><td class="num">${Math.round(h.durasi_detik / 60)} mnt</td></tr>`).join('')}</table>
     ${hs.length ? '' : '<p class="empty">Belum pernah bermain.</p>'}</div>`;
   document.body.appendChild(m);
   m.onclick = e => { if (e.target === m) m.remove(); };
@@ -249,7 +251,7 @@ function unduh(){
     .concat(statPemain().map(p => [p.nama, p.kelas, p.kode_lanjut, fmt(p.pertama_main), fmt(p.terakhir_main), p.main, p.tuntas, p.rata ?? '', p.bintang]))));
   const pk = {}; D.pemain.forEach(p => pk[p.id_pemain] = p);
   $('#u2').onclick = () => unduhFile('hasil-rihlah-ilmu.csv', csv([['waktu','nama','kelas_pemain','wilayah','mapel','no_bab','judul_bab','tahap','nilai','bintang','durasi_detik']]
-    .concat(hasilTersaring().map(h => [fmt(h.waktu), pk[h.id_pemain].nama, h.kelas_pemain, h.wilayah, h.mapel, h.no_bab, h.jenis_tahap === 'manzil' ? judulBab(h.wilayah, h.mapel, h.no_bab) : 'Munazharah', h.jenis_tahap, h.nilai, h.bintang, h.durasi_detik]))));
+    .concat(hasilTersaring().map(h => [fmt(h.waktu), pk[h.id_pemain].nama, h.kelas_pemain, h.wilayah, h.mapel, h.no_bab, h.jenis_tahap === 'manzil' ? judulBab(h.wilayah, h.mapel, h.no_bab) : h.jenis_tahap === 'ijazah' ? 'Ujian Ijazah' : 'Munazharah', h.jenis_tahap, h.nilai, h.bintang, h.durasi_detik]))));
 }
 
 function alertBox(msg){ const m = document.createElement('div'); m.className = 'modal'; m.innerHTML = `<div class="card" style="max-width:380px"><p>${esc(msg)}</p><button class="btn gold">OK</button></div>`; document.body.appendChild(m); m.querySelector('button').onclick = () => m.remove(); }

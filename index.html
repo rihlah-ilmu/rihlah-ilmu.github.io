@@ -39,8 +39,8 @@ button{font:inherit;cursor:pointer;color:inherit}
 /* top bar */
 .bar{display:flex;align-items:center;gap:8px;color:#fff;margin-bottom:12px}
 .bar .grow{flex:1;min-width:0}
-.chip{background:rgba(255,255,255,.12);border:0;border-radius:999px;padding:8px 12px;font-weight:700;font-size:14px;color:#fff;white-space:nowrap}
-.iconbtn{background:rgba(255,255,255,.12);border:0;border-radius:12px;width:42px;height:42px;font-size:18px;color:#fff;flex:0 0 42px}
+.chip{background:#28324f;border:0;border-radius:999px;padding:8px 12px;font-weight:700;font-size:14px;color:#fff;white-space:nowrap}
+.iconbtn{background:#28324f;border:0;border-radius:12px;width:42px;height:42px;font-size:18px;color:#fff;flex:0 0 42px}
 /* gerbang */
 .gate{min-height:calc(100vh - 140px);display:flex;flex-direction:column;justify-content:center;text-align:center;color:#fff;gap:10px}
 .gate .ar{font-family:'Amiri',serif;font-size:30px;color:var(--gold2)}
@@ -100,7 +100,7 @@ input.txt:focus{outline:none;border-color:var(--gold)}
 .tag{font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#8a6a1c}
 /* main */
 .hud{display:flex;align-items:center;gap:8px;color:#fff;margin-bottom:10px}
-.hud .track{flex:1;height:10px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden}
+.hud .track{flex:1;height:10px;background:#2b3552;border-radius:99px;overflow:hidden}
 .hud .track>i{display:block;height:100%;background:linear-gradient(90deg,var(--gold2),var(--gold));transition:width .3s}
 .qhead{font-size:12px;font-weight:800;color:#8a6a1c;text-transform:uppercase;letter-spacing:.6px}
 .qtext{font-size:18px;font-weight:700;line-height:1.45;margin:8px 0 14px}
@@ -171,9 +171,10 @@ h3.sec{font-size:15px;margin:16px 0 6px}
 <div class="app" id="app"></div>
 <div class="toast" id="toast"></div>
 
+<script src="config.js"></script>
 <script>
 /* ======================= PENGATURAN ======================= */
-const API_URL = "https://script.google.com/macros/s/AKfycbwtj-MGtMM9xZy-qDp-bWLBSrV5Rm45uQ1ZbLT2Y2S2YftOSAFMvxqlkEE8etB_HxRCPQ/exec";          // isi dengan URL Web App Apps Script (berakhiran /exec)
+const API_URL = /^https:\/\//.test(String(window.RIHLAH_API_URL || "").trim()) ? String(window.RIHLAH_API_URL).trim() : "";   // diatur di file config.js
 const DEMO = /*DEMO*/null;   // diisi otomatis pada versi demo
 
 /* ======================= DATA TETAP ======================= */
@@ -371,7 +372,7 @@ function scrLanjut(){
       const j = await apiGet({action:'pulihkan', kode});
       S.player = {id: j.pemain.id_pemain, nama: j.pemain.nama, kelas: j.pemain.kelas, kode: j.pemain.kode_lanjut};
       S.prog = {}; S.hist = [];
-      j.hasil.sort((a, b) => a.waktu < b.waktu ? -1 : 1).forEach(h => catat(h.wilayah, h.mapel, h.jenis_tahap === 'munazharah' ? 'M' : h.no_bab, h.nilai, h.durasi_detik, h.waktu, h.jenis_tahap));
+      j.hasil.sort((a, b) => a.waktu < b.waktu ? -1 : 1).forEach(h => catat(h.wilayah, h.jenis_tahap === 'ijazah' ? 'Ujian' : h.mapel, h.jenis_tahap === 'munazharah' ? 'M' : h.jenis_tahap === 'ijazah' ? 'I' : h.no_bab, h.nilai, h.durasi_detik, h.waktu, h.jenis_tahap));
       S.wil = ['X','XI','XII'].includes(S.player.kelas) ? S.player.kelas : 'X';
       save(); toast('Perjalanan berhasil dipulihkan'); scrPeta();
     } catch (e) {
@@ -434,13 +435,13 @@ async function scrPeta(){
       <div style="flex:1;min-width:0"><h3>${it.j.nama}</h3><div class="sub">${esc(it.j.mapel)}${it.k ? ' · ' + it.k.bab + ' manzil' : ''}</div>
       ${it.ada ? `<div class="mini"><i style="width:${Math.round(it.pct * 100)}%;background:${it.j.warna}"></i></div>` : ''}</div>
     </button>`).join('') +
-    `<button class="path ${semua ? '' : 'off'}" id="ijz"><div class="ic" style="background:#e7b84a33">📜</div><div><h3>Ujian Ijazah ${esc(w.tujuan)}</h3><div class="sub">${semua ? 'Siap diuji!' : 'Terbuka setelah keempat jalur tuntas'}</div></div></button>`;
+    `<button class="path ${semua ? '' : 'off'}" id="ijz"><div class="ic" style="background:#e7b84a33">📜</div><div><h3>Ujian Ijazah ${esc(w.tujuan)}</h3><div class="sub">${(S.prog[keyOf(w.kelas, 'Ujian', 'I')] || {}).best >= 70 ? '📜 Ijazah diraih · nilai ' + S.prog[keyOf(w.kelas, 'Ujian', 'I')].best : (semua ? 'Siap diuji! 20 soal dari empat jalur' : 'Terbuka setelah keempat jalur tuntas')}</div></div></button>`;
   app.querySelectorAll('.path[data-i]').forEach(b => b.onclick = () => {
     const it = items[+b.dataset.i];
     if (!it.ada) { toast('Jalur ini sedang disiapkan. Segera hadir!'); return; }
     beep('tap'); scrJalur(w.kelas, it.j.mapel);
   });
-  $('#ijz').onclick = () => toast(semua ? 'Ujian Ijazah hadir pada tahap berikutnya, insyaallah.' : 'Tuntaskan keempat jalur dulu.');
+  $('#ijz').onclick = () => { if (!semua) { toast('Tuntaskan keempat jalur dulu.'); return; } beep('tap'); mulaiIjazah(w.kelas); };
 }
 
 /* ======================= LAYAR: JALUR ======================= */
@@ -527,6 +528,18 @@ function mulai(kelas, mapel, no){
   babakIntro();
 }
 
+async function mulaiIjazah(kelas){
+  app.innerHTML = `<p class="dim center" style="margin-top:40px">Menyiapkan soal ujian…</p>`;
+  try {
+    const all = await Promise.all(JALUR.map(j => getJalur(kelas, j.mapel)));
+    let items = [];
+    all.forEach(d => { if (d) items = items.concat(shuffle(d.soal.filter(s => s.jenis === 'PG' || s.jenis === 'BS')).slice(0, 5)); });
+    if (items.length < 8) { toast('Soal ujian belum cukup.'); return scrPeta(); }
+    G = {kelas, mapel: 'Ujian', no: 'I', isM: false, isI: true, babak: [{jenis: 'MIX', items: shuffle(items)}], bi: 0, ii: 0, pts: 0, max: 0, log: [], kurma: 0, t0: Date.now(), lentera: 3, dead: false};
+    babakIntro();
+  } catch (e) { toast('Gagal memuat soal. Periksa internetmu.'); scrPeta(); }
+}
+
 function totalItems(){ return G.babak.reduce((s, b) => s + b.items.length, 0); }
 function doneItems(){ let n = 0; for (let i = 0; i < G.bi; i++) n += G.babak[i].items.length; return n + G.ii; }
 
@@ -542,17 +555,17 @@ function wireQuit(){
     m.innerHTML = `<div class="card center"><h3>Berhenti di tengah jalan?</h3><p class="small mt">Kemajuan di manzil ini tidak disimpan.</p><button class="btn gold mt2" id="mlj">Lanjutkan bermain</button><button class="btn plain mt" id="mkl">Keluar</button></div>`;
     document.body.appendChild(m);
     m.querySelector('#mlj').onclick = () => m.remove();
-    m.querySelector('#mkl').onclick = () => { m.remove(); clearInterval(G && G.timer); scrJalur(G.kelas, G.mapel); };
+    m.querySelector('#mkl').onclick = () => { m.remove(); clearInterval(G && G.timer); G.isI ? scrPeta() : scrJalur(G.kelas, G.mapel); };
   };
 }
 
 function babakIntro(){
   const b = G.babak[G.bi];
-  const nama = G.isM ? 'Munazharah' : NAMA_JENIS[b.jenis];
+  const nama = G.isI ? 'Ujian Ijazah' : G.isM ? 'Munazharah' : NAMA_JENIS[b.jenis];
   app.innerHTML = hud() + `<div class="card center fade" style="padding:28px 18px">
-    <div class="tag">${G.isM ? 'Tantangan akhir jalur' : 'Babak ' + (G.bi + 1) + ' dari ' + G.babak.length}</div>
+    <div class="tag">${G.isI ? 'Ujian akhir wilayah' : G.isM ? 'Tantangan akhir jalur' : 'Babak ' + (G.bi + 1) + ' dari ' + G.babak.length}</div>
     <h2 style="font-size:24px;margin:8px 0">${nama}</h2>
-    <p class="small">${G.isM ? 'Jawab 10 soal campuran dari seluruh manzil. Setiap jawaban salah memadamkan satu lentera. Raih nilai 70 untuk mendapat kitab.' : petunjuk(b.jenis)}</p>
+    <p class="small">${G.isI ? 'Jawab ' + G.babak[0].items.length + ' soal dari keempat jalur. Raih nilai 70 untuk mendapatkan ijazah atas namamu.' : G.isM ? 'Jawab 10 soal campuran dari seluruh manzil. Setiap jawaban salah memadamkan satu lentera. Raih nilai 70 untuk mendapat kitab.' : petunjuk(b.jenis)}</p>
     <button class="btn gold mt2" id="go">Mulai</button></div>`;
   wireQuit();
   $('#go').onclick = () => { beep('tap'); item(); };
@@ -594,7 +607,7 @@ function jawab(ok, pts, max, logs, pesan, bahas){
   { const ch = app.querySelector('.hud .chip'); if (ch) ch.textContent = '🌴 +' + G.kurma; const ln = app.querySelector('.lentera'); if (ln) ln.textContent = '🪔'.repeat(Math.max(0, G.lentera)); }
 }
 const head = (label) => hud() + `<div class="card fade"><div class="qhead">${label}</div>`;
-function itemLabel(){ const b = G.babak[G.bi]; return (G.isM ? 'Soal ' : (NAMA_JENIS[b.jenis] + ' · ')) + (G.ii + 1) + '/' + b.items.length; }
+function itemLabel(){ const b = G.babak[G.bi]; return (b.jenis === 'MIX' ? 'Soal ' : (NAMA_JENIS[b.jenis] + ' · ')) + (G.ii + 1) + '/' + b.items.length; }
 
 /* --- PG --- */
 function gPG(s){
@@ -603,7 +616,7 @@ function gPG(s){
   const opts = shuffle(L.map((t, i) => ({t, ok: i === kunci})).filter(o => o.t !== '' && o.t != null));
   app.innerHTML = head(itemLabel()) + `<div class="qtext">${esc(s.pertanyaan)}</div>
     ${opts.map((o, i) => `<button class="opt" data-i="${i}">${esc(o.t)}</button>`).join('')}
-    ${!G.isM && S.kurma + G.kurma >= 3 ? `<button class="btn plain mt" id="ff" style="min-height:42px;padding:10px">✂️ Hapus 2 pilihan salah (3 kurma)</button>` : ''}</div>`;
+    ${!G.isM && !G.isI && S.kurma + G.kurma >= 3 ? `<button class="btn plain mt" id="ff" style="min-height:42px;padding:10px">✂️ Hapus 2 pilihan salah (3 kurma)</button>` : ''}</div>`;
   wireQuit();
   if ($('#ff')) $('#ff').onclick = () => {
     if (S.kurma >= 3) S.kurma -= 3; else G.kurma -= 3;
@@ -623,7 +636,7 @@ function gPG(s){
 /* --- BS --- */
 function gBS(s){
   const truth = String(s.kunci).trim().toUpperCase().startsWith('B');
-  app.innerHTML = head(itemLabel()) + `${G.isM ? '' : '<div class="timer"><i id="tm"></i></div>'}<div class="qtext">${esc(s.pertanyaan)}</div>
+  app.innerHTML = head(itemLabel()) + `${G.isM || G.isI ? '' : '<div class="timer"><i id="tm"></i></div>'}<div class="qtext">${esc(s.pertanyaan)}</div>
     <div class="duo"><button class="opt" data-v="1">✔ Benar</button><button class="opt" data-v="0">✘ Salah</button></div></div>`;
   wireQuit();
   let done = false;
@@ -635,7 +648,7 @@ function gBS(s){
     jawab(ok, ok ? 10 : 0, 10, [{id_soal: s.id_soal, jawaban: v === null ? '(waktu habis)' : (v ? 'BENAR' : 'SALAH'), benar: ok}], v === null ? 'Waktu habis!' : null, s.pembahasan);
   };
   app.querySelectorAll('.opt').forEach(x => x.onclick = () => fin(x.dataset.v === '1'));
-  if (!G.isM) {
+  if (!G.isM && !G.isI) {
     const t0 = Date.now(), dur = 10000;
     G.timer = setInterval(() => {
       const left = Math.max(0, dur - (Date.now() - t0));
@@ -753,6 +766,7 @@ function catat(kelas, mapel, no, nilai, dur, waktu, tahap){
 
 function selesai(){
   clearInterval(G.timer);
+  if (G.isI) return selesaiIjazah();
   const nilai = G.max ? Math.round(G.pts / G.max * 100) : 0;
   const bintang = starsOf(nilai);
   const dur = Math.round((Date.now() - G.t0) / 1000);
@@ -792,15 +806,95 @@ function selesai(){
   $('#pt').onclick = () => scrJalur(k, m);
 }
 
+function selesaiIjazah(){
+  const nilai = G.max ? Math.round(G.pts / G.max * 100) : 0;
+  const dur = Math.round((Date.now() - G.t0) / 1000);
+  catat(G.kelas, 'Ujian', 'I', nilai, dur);
+  S.kurma = Math.max(0, S.kurma + G.kurma);
+  const k = keyOf(G.kelas, 'Ujian', 'I');
+  if (nilai >= 70) { S.prog[k].tgl = S.prog[k].tgl && S.prog[k].best > nilai ? S.prog[k].tgl : new Date().toISOString(); }
+  save();
+  antre({action: 'hasil', id_pemain: S.player.id, kelas_pemain: S.player.kelas, wilayah: G.kelas, mapel: 'Semua',
+    no_bab: 0, jenis_tahap: 'ijazah', nilai, bintang: starsOf(nilai), durasi_detik: dur, waktu: new Date().toISOString(), jawaban: G.log});
+  const kelas = G.kelas, lulus = nilai >= 70;
+  beep(lulus ? 'win' : 'no');
+  app.innerHTML = `<div class="card res fade" style="margin-top:20px">
+    <div style="font-size:64px">${lulus ? '📜' : '📖'}</div>
+    <h2 style="font-size:22px;margin-top:6px">${lulus ? 'Alhamdulillah, ijazah diraih!' : 'Belum lulus ujian'}</h2>
+    <div class="big">${nilai}</div>
+    <p class="small">${lulus ? 'Selamat! Perjalananmu di wilayah ini tuntas.' : 'Butuh nilai 70. Ulangi manzil yang masih lemah di Paspor, lalu coba lagi.'}</p>
+    ${lulus ? '<button class="btn gold mt2" id="sr">Lihat Ijazahku</button>' : ''}
+    <button class="btn green mt" id="ul">↻ Ulangi ujian</button>
+    <button class="btn plain mt" id="pt">Kembali ke Peta</button></div>`;
+  if (lulus) $('#sr').onclick = () => scrSertifikat(kelas);
+  $('#ul').onclick = () => mulaiIjazah(kelas);
+  $('#pt').onclick = scrPeta;
+}
+
+function gambarIjazah(kelas){
+  const w = WILAYAH.find(x => x.kelas === kelas), p = S.prog[keyOf(kelas, 'Ujian', 'I')] || {};
+  const c = document.createElement('canvas'); c.width = 1400; c.height = 990;
+  const g = c.getContext('2d');
+  const F = (wt, sz, fam) => `${wt} ${sz}px ${fam || "'Plus Jakarta Sans', Arial, sans-serif"}`;
+  g.fillStyle = '#fbf3df'; g.fillRect(0, 0, 1400, 990);
+  g.strokeStyle = '#b58a2a'; g.lineWidth = 14; g.strokeRect(36, 36, 1328, 918);
+  g.strokeStyle = '#e7b84a'; g.lineWidth = 3; g.strokeRect(66, 66, 1268, 858);
+  // ornamen sudut
+  g.fillStyle = '#e7b84a';
+  [[96, 96], [1304, 96], [96, 894], [1304, 894]].forEach(([x, y]) => { g.save(); g.translate(x, y); g.rotate(Math.PI / 4); g.fillRect(-14, -14, 28, 28); g.restore(); });
+  g.textAlign = 'center';
+  g.fillStyle = '#8a6a1c'; g.font = F('bold', 44, "'Amiri', serif"); g.fillText('رِحْلَةُ الْعِلْمِ', 700, 160);
+  g.fillStyle = '#14213d'; g.font = F(800, 64); g.fillText('IJAZAH RIHLAH ILMU', 700, 250);
+  g.fillStyle = '#5b5f6b'; g.font = F(600, 28); g.fillText('Dengan ini menyatakan bahwa', 700, 330);
+  g.fillStyle = '#14213d'; g.font = F(800, 72);
+  let nm = S.player.nama; while (g.measureText(nm).width > 1100 && nm.length > 3) nm = nm.slice(0, -1);
+  g.fillText(nm, 700, 430);
+  g.strokeStyle = '#e7b84a'; g.lineWidth = 3; g.beginPath(); g.moveTo(330, 460); g.lineTo(1070, 460); g.stroke();
+  g.fillStyle = '#3b3f4b'; g.font = F(600, 30);
+  g.fillText(`telah menuntaskan perjalanan ilmu Wilayah ${w.nama} (Kelas ${kelas})`, 700, 530);
+  g.fillText("Al-Qur'an Hadis · Akidah Akhlak · Fikih · SKI", 700, 578);
+  g.fillStyle = '#8a6a1c'; g.font = F(800, 40); g.fillText(`Nilai Ujian Ijazah: ${p.best || 0}`, 700, 660);
+  g.fillStyle = '#5b5f6b'; g.font = F(600, 26);
+  const tgl = new Date(p.tgl || Date.now()).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'});
+  g.fillText(`${w.tujuan}, ${tgl}`, 700, 730);
+  g.font = F(600, 22); g.fillStyle = '#8a8e99'; g.fillText(`Kode pemain ${S.player.kode} · rihlah-ilmu.github.io`, 700, 860);
+  // segel
+  g.beginPath(); g.arc(1150, 760, 70, 0, Math.PI * 2); g.fillStyle = '#e7b84a'; g.fill();
+  g.beginPath(); g.arc(1150, 760, 56, 0, Math.PI * 2); g.strokeStyle = '#fbf3df'; g.lineWidth = 3; g.stroke();
+  g.fillStyle = '#3b2b05'; g.font = F(800, 22); g.fillText('LULUS', 1150, 768);
+  return c;
+}
+
+function scrSertifikat(kelas){
+  const c = gambarIjazah(kelas);
+  const url = c.toDataURL('image/png');
+  app.innerHTML = topbar(true) + `<div class="fade"><img src="${url}" alt="Ijazah" style="width:100%;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.4)">
+    <button class="btn gold mt2" id="dl">⬇ Simpan Ijazah</button>
+    ${navigator.share ? '<button class="btn ghost mt" id="sh">Bagikan</button>' : ''}
+    <p class="dim center mt" style="font-size:13px">Jika tombol simpan tidak berfungsi, tekan lama gambar lalu pilih Simpan gambar.</p></div>`;
+  wireTop(scrPaspor);
+  const nama = 'Ijazah-Rihlah-Ilmu-Kelas-' + kelas + '.png';
+  $('#dl').onclick = () => { const a = document.createElement('a'); a.href = url; a.download = nama; document.body.appendChild(a); a.click(); a.remove(); };
+  if ($('#sh')) $('#sh').onclick = async () => {
+    try {
+      const blob = await (await fetch(url)).blob();
+      const file = new File([blob], nama, {type: 'image/png'});
+      if (navigator.canShare && navigator.canShare({files: [file]})) await navigator.share({files: [file], title: 'Ijazah Rihlah Ilmu'});
+      else await navigator.share({title: 'Rihlah Ilmu', text: 'Alhamdulillah, aku meraih Ijazah Rihlah Ilmu!', url: 'https://rihlah-ilmu.github.io'});
+    } catch (e) {}
+  };
+}
+
 /* ======================= PASPOR & RAPOR ======================= */
 function scrPaspor(){
   const p = S.player;
   const keys = Object.keys(S.prog);
-  const stamps = keys.filter(k => !k.endsWith('|M') && S.prog[k].stars >= 1).length;
+  const stamps = keys.filter(k => !k.endsWith('|M') && !k.endsWith('|I') && S.prog[k].stars >= 1).length;
+  const ijazah = WILAYAH.filter(w => (S.prog[keyOf(w.kelas, 'Ujian', 'I')] || {}).best >= 70);
   const kitab = keys.filter(k => k.endsWith('|M') && S.prog[k].best >= 70).length;
   // rapor per jalur
   const grup = {};
-  keys.forEach(k => { const [kl, mp, no] = k.split('|'); const g = grup[kl + '|' + mp] = grup[kl + '|' + mp] || {kl, mp, rows: []}; g.rows.push({no, ...S.prog[k]}); });
+  keys.filter(k => k.split('|')[1] !== 'Ujian').forEach(k => { const [kl, mp, no] = k.split('|'); const g = grup[kl + '|' + mp] = grup[kl + '|' + mp] || {kl, mp, rows: []}; g.rows.push({no, ...S.prog[k]}); });
   const lemah = [];
   const rapor = Object.values(grup).map(g => {
     const j = jalurInfo(g.mp);
@@ -818,6 +912,8 @@ function scrPaspor(){
       <div class="row"><span>🌴 Kurma</span><b>${S.kurma}</b></div>
       <div class="row"><span>🔖 Stempel manzil</span><b>${stamps}</b></div>
       <div class="row"><span>📚 Kitab koleksi</span><b>${kitab}</b></div>
+      <div class="row"><span>📜 Ijazah</span><b>${ijazah.length}</b></div>
+      ${ijazah.map(w => `<button class="btn plain mt" data-ij="${w.kelas}" style="min-height:42px;padding:10px">📜 Lihat ijazah ${esc(w.nama)} (kelas ${w.kelas})</button>`).join('')}
       <h3 class="sec">Kode Lanjut</h3>
       <div class="kode">${esc(p.kode)}</div>
       <p class="small mt">Catat kode ini untuk melanjutkan perjalanan di HP lain. Ini bukan kata sandi.</p>
@@ -827,12 +923,14 @@ function scrPaspor(){
       <div class="tag">Rapor Perjalanan</div>
       ${last.length ? `<h3 class="sec">10 permainan terakhir</h3><div class="bars">${last.map(h => `<i style="height:${Math.max(4, h.nilai)}%"><span>${h.nilai}</span></i>`).join('')}</div>` : '<p class="small mt">Belum ada perjalanan. Ayo mulai dari manzil pertama!</p>'}
       ${lemah.length ? `<h3 class="sec">Perlu diulang (nilai di bawah 70)</h3>${lemah.map(x => `<div class="row"><span>${esc(x)}</span></div>`).join('')}` : (last.length ? '<p class="small mt">Tidak ada manzil yang nilainya di bawah 70. Pertahankan!</p>' : '')}
+      ${WILAYAH.filter(w => S.prog[keyOf(w.kelas, 'Ujian', 'I')]).map(w => { const u = S.prog[keyOf(w.kelas, 'Ujian', 'I')]; return `<h3 class="sec">📜 Ujian Ijazah · Kelas ${w.kelas}</h3><div class="row"><span>${u.best >= 70 ? 'Lulus' : 'Belum lulus'}</span><span><b>${u.best}</b> <span class="small">· ${u.tries}×</span></span></div>`; }).join('')}
       ${rapor}
     </div>
     <button class="btn ghost mt" id="ed">Ubah nama atau kelas</button>
     <button class="btn ghost mt" id="gp">Ganti pemain di HP ini</button>`;
   wireTop(scrPeta);
   $('#cp').onclick = async () => { try { await navigator.clipboard.writeText(p.kode); toast('Kode disalin'); } catch (e) { toast('Salin manual: ' + p.kode); } };
+  app.querySelectorAll('[data-ij]').forEach(b => b.onclick = () => scrSertifikat(b.dataset.ij));
   $('#ed').onclick = () => scrIdentitas(true);
   $('#gp').onclick = () => {
     const m = document.createElement('div'); m.className = 'modal';
