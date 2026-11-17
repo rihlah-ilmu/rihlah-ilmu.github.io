@@ -62,6 +62,17 @@ input.txt:focus{outline:none;border-color:var(--gold)}
 .tabs{display:flex;gap:6px;margin-bottom:12px}
 .tabs button{flex:1;border:0;border-radius:12px;padding:10px 4px;background:rgba(255,255,255,.1);color:#cfd6ea;font-weight:800;font-size:14px}
 .tabs button.on{background:var(--gold);color:#3b2b05}
+input::placeholder{text-transform:none}
+.info{background:var(--card);border-radius:18px;padding:14px 16px;margin-bottom:12px;box-shadow:0 6px 18px rgba(0,0,0,.25);color:var(--ink);display:block;width:100%;text-align:left;border:0}
+.info .tag{color:#9a6b12}
+.info h3{font-size:16px;margin-top:3px}
+.info .sub{font-size:13px;color:var(--muted);margin-top:2px}
+.info .mini{height:8px;background:#eee4cc;border-radius:99px;margin-top:8px;overflow:hidden}
+.info .mini i{display:block;height:100%;border-radius:99px;background:var(--ok)}
+.info.tugas{border-left:6px solid #c0603f}
+.info.selesai{border-left-color:var(--ok)}
+.dalil .putar{display:inline-flex;align-items:center;gap:6px;margin:6px 6px 0 0;border:0;border-radius:999px;padding:7px 12px;background:#2e9e7a;color:#fff;font-weight:700;font-size:13px}
+.dalil .putar.on{background:#c0603f}
 .bekal{background:linear-gradient(135deg,#fff8e6,#fbecc4);border-radius:18px;padding:14px 16px;margin-bottom:12px;box-shadow:0 6px 18px rgba(0,0,0,.25);color:var(--ink)}
 .bekal .tag{color:#9a6b12}
 .bekal .dep{font-weight:800;font-size:16px;margin-top:4px}
@@ -189,6 +200,12 @@ h3.sec{font-size:15px;margin:16px 0 6px}
 .modal .card{max-width:400px;width:100%}
 .offline{background:#fff4d8;color:#6b4e00;border-radius:12px;padding:8px 12px;font-size:13px;margin-bottom:10px}
 </style>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14213d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rihlah Ilmu">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
 </head>
 <body>
 <svg id="sky" aria-hidden="true"></svg>
@@ -246,9 +263,10 @@ let S = {
   mute: store.get('mute', false),
   wil: store.get('wil', null),
   harian: store.get('harian', {last: '', streak: 0, best: 0, total: 0}),
-  kafilah: store.get('kafilah', {punya: ['unta'], pakai: {kendaraan: 'unta', panji: '', bawaan: ''}})
+  kafilah: store.get('kafilah', {punya: ['unta'], pakai: {kendaraan: 'unta', panji: '', bawaan: ''}}),
+  salah: store.get('salah', {})
 };
-function save(){ ['player','prog','hist','kurma','mute','wil','harian','kafilah'].forEach(k => store.set(k, S[k])); }
+function save(){ ['player','prog','hist','kurma','mute','wil','harian','kafilah','salah'].forEach(k => store.set(k, S[k])); }
 
 /* suara */
 let actx = null;
@@ -289,7 +307,7 @@ async function getKatalog(){
   if (DEMO) return DEMO.katalog;
   try {
     const j = await apiGet({action:'katalog'});
-    store.set('katalog', j.jalur); return j.jalur;
+    store.set('katalog', j.jalur); store.set('tugas', j.tugas || []); return j.jalur;
   } catch (e) { return store.get('katalog', []); }
 }
 async function getJalur(kelas, mapel){
@@ -329,7 +347,7 @@ window.addEventListener('online', kirimAntrian);
 
 function kirimDaftar(){
   const p = S.player; if (!p) return;
-  antre({action:'daftar', id_pemain: p.id, nama: p.nama, kelas: p.kelas, kode_lanjut: p.kode});
+  antre({action:'daftar', id_pemain: p.id, nama: p.nama, kelas: p.kelas, kode_lanjut: p.kode, rombel: p.rombel || ''});
 }
 
 /* ======================= LAYAR: GERBANG & IDENTITAS ======================= */
@@ -360,6 +378,8 @@ function scrIdentitas(edit){
       <input class="txt" id="nm" maxlength="30" placeholder="Contoh: Ahmad Fauzi" value="${esc(p.nama || '')}" autocomplete="name">
       <label class="lbl mt">Kelas</label>
       <div class="kelas">${['X','XI','XII','Umum'].map(k => `<button data-k="${k}" class="${k === kelas ? 'on' : ''}">${k}</button>`).join('')}</div>
+      <label class="lbl mt" for="rb">Kode rombel <span class="small">(opsional, dari gurumu)</span></label>
+      <input class="txt" id="rb" maxlength="20" placeholder="Contoh: XI-A" value="${esc(p.rombel || '')}" style="text-transform:uppercase">
       <div class="err" id="er"></div>
       <button class="btn gold mt" id="ok">${edit ? 'Simpan' : 'Berangkat!'}</button>
       ${edit ? '<button class="btn plain mt" id="bt">Batal</button>' : ''}
@@ -372,13 +392,14 @@ function scrIdentitas(edit){
     const nama = $('#nm').value.replace(/[<>=]/g, '').replace(/\s+/g, ' ').trim();
     if (nama.length < 2) { $('#er').textContent = 'Tulis namamu dulu, minimal 2 huruf.'; return; }
     if (!kelas) { $('#er').textContent = 'Pilih kelasmu.'; return; }
+    const rombel = $('#rb').value.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 20);
     if (!S.player) {
       const id = (crypto.randomUUID ? crypto.randomUUID() : 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10)).toLowerCase();
       const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       let kode = 'RH-'; for (let i = 0; i < 4; i++) kode += a[Math.floor(Math.random() * a.length)];
-      S.player = {id, nama, kelas, kode};
+      S.player = {id, nama, kelas, kode, rombel};
       if (!S.wil) S.wil = ['X','XI','XII'].includes(kelas) ? kelas : 'X';
-    } else { S.player.nama = nama; S.player.kelas = kelas; }
+    } else { S.player.nama = nama; S.player.kelas = kelas; S.player.rombel = rombel; }
     save(); kirimDaftar(); beep('win');
     edit ? scrPaspor() : scrPeta();
   };
@@ -402,7 +423,7 @@ function scrLanjut(){
     $('#ok').textContent = 'Mencari…';
     try {
       const j = await apiGet({action:'pulihkan', kode});
-      S.player = {id: j.pemain.id_pemain, nama: j.pemain.nama, kelas: j.pemain.kelas, kode: j.pemain.kode_lanjut};
+      S.player = {id: j.pemain.id_pemain, nama: j.pemain.nama, kelas: j.pemain.kelas, kode: j.pemain.kode_lanjut, rombel: j.pemain.rombel || ''};
       S.prog = {}; S.hist = [];
       j.hasil.sort((a, b) => a.waktu < b.waktu ? -1 : 1).forEach(h => catat(h.wilayah, h.jenis_tahap === 'ijazah' ? 'Ujian' : h.mapel, h.jenis_tahap === 'munazharah' ? 'M' : h.jenis_tahap === 'ijazah' ? 'I' : h.no_bab, h.nilai, h.durasi_detik, h.waktu, h.jenis_tahap));
       S.wil = ['X','XI','XII'].includes(S.player.kelas) ? S.player.kelas : 'X';
@@ -455,7 +476,7 @@ async function scrPeta(){
   const tot = items.filter(i => i.ada);
   const wp = tot.length ? Math.round(tot.reduce((s, i) => s + i.pct, 0) / 4 * 100) : 0;
   const semua = items.every(i => i.ada && i.pct >= 1);
-  $('#wil').innerHTML = htmlKafilah(w, wp) + `<div id="bh"></div><div class="region fade" style="background:${w.warna}">
+  $('#wil').innerHTML = htmlKafilah(w, wp) + `<div id="bh"></div><div id="pnl"></div><div class="region fade" style="background:${w.warna}">
       <span class="pct">${wp}%</span>
       <h2>${esc(w.nama)}</h2><div class="sub">Wilayah kelas ${w.kelas} · tujuan: ${esc(w.tujuan)}</div>
       <div class="prog"><i style="width:${wp}%"></i></div>
@@ -476,6 +497,7 @@ async function scrPeta(){
   $('#ijz').onclick = () => { if (!semua) { toast('Tuntaskan keempat jalur dulu.'); return; } beep('tap'); mulaiIjazah(w.kelas); };
   const kf = $('#kfl'); if (kf) kf.onclick = scrPasar;
   bekalHarian(items.filter(i => i.ada));
+  panelPeta();
 }
 
 /* ======================= BEKAL HARIAN ======================= */
@@ -510,6 +532,155 @@ async function bekalHarian(jalurAda){
     const ch = app.querySelector('.bar .chip'); if (ch) ch.textContent = '🌴 ' + S.kurma + ' kurma';
     bekalHarian(jalurAda);
   };
+}
+
+/* ======================= PANEL PETA: MURAJAAH, TUGAS, TANTANGAN ======================= */
+const KODE_MAPEL = {QH: "Al-Qur'an Hadis", AA: 'Akidah Akhlak', FK: 'Fikih', SKI: 'SKI'};
+function infoId(id){ const p = String(id).split('-'); return {mapel: KODE_MAPEL[p[0]], kelas: p[1]}; }
+function kantong(logs){
+  const K = S.salah, now = Date.now();
+  logs.forEach(l => {
+    if (!l.id_soal || !KODE_MAPEL[String(l.id_soal).split('-')[0]]) return;
+    if (!l.benar) K[l.id_soal] = {d: now + 864e5, l: 0, t: now};
+    else if (K[l.id_soal] && (G.isR || now >= K[l.id_soal].d)) {
+      const e = K[l.id_soal]; e.l++;
+      if (e.l >= 3) delete K[l.id_soal]; else e.d = now + [1, 3, 7][e.l] * 864e5;
+    }
+  });
+  const ids = Object.keys(K);
+  if (ids.length > 300) ids.sort((a, b) => K[a].t - K[b].t).slice(0, ids.length - 300).forEach(id => delete K[id]);
+}
+const jatuhTempo = () => Object.keys(S.salah).filter(id => S.salah[id].d <= Date.now());
+const kelasPemain = () => S.player && ['X', 'XI', 'XII'].includes(S.player.kelas) ? S.player.kelas : S.wil;
+function tglPendek(d){ return new Date(d).toLocaleDateString('id-ID', {weekday: 'long', day: 'numeric', month: 'short'}); }
+async function panelPeta(){
+  const box = $('#pnl'); if (!box || !S.player) return;
+  let h = '';
+  // tugas
+  const rb = (S.player.rombel || '').toUpperCase();
+  const tugas = (DEMO ? (DEMO.tugas || []) : store.get('tugas', [])).filter(t => (S.player.kelas === 'Umum' || t.kelas === S.player.kelas) && (!t.rombel || t.rombel === rb)
+    && (!t.tenggat || Date.now() - new Date(t.tenggat).getTime() < 7 * 864e5));
+  tugas.forEach((t, i) => {
+    const total = t.bab_sampai - t.bab_dari + 1;
+    let done = 0; for (let n = t.bab_dari; n <= t.bab_sampai; n++) if ((S.prog[keyOf(t.kelas, t.mapel, n)] || {}).stars >= 1) done++;
+    const j = jalurInfo(t.mapel), lewat = t.tenggat && Date.now() > new Date(t.tenggat).getTime();
+    h += `<button class="info tugas ${done >= total ? 'selesai' : ''} fade" data-tg="${i}"><div class="tag">📌 Tugas dari Ustadz</div><h3>${esc(t.judul)}</h3>
+      <div class="sub">${j.ikon} ${esc(j.nama)} kelas ${esc(t.kelas)} · manzil ${t.bab_dari}${total > 1 ? '–' + t.bab_sampai : ''}${t.tenggat ? ' · tenggat ' + tglPendek(t.tenggat) : ''}</div>
+      <div class="mini"><i style="width:${Math.round(done / total * 100)}%"></i></div>
+      <div class="sub">${done >= total ? '✅ Selesai! Jazakallah khairan.' : `${done}/${total} manzil tuntas${lewat ? ' · ⚠️ tenggat sudah lewat' : ''}`}</div></button>`;
+  });
+  // murajaah
+  const due = jatuhTempo().length, totalK = Object.keys(S.salah).length;
+  if (totalK) h += `<button class="info fade" id="mrj"><div class="tag">📚 Kantong Kesalahan</div><h3>${due ? `Murajaah: ${due} soal menunggu` : 'Tidak ada murajaah hari ini'}</h3>
+    <div class="sub">${due ? 'Ulangi soal yang pernah keliru agar makin melekat. Tidak memengaruhi nilai.' : `${totalK} soal akan muncul lagi di hari-hari berikutnya.`}</div></button>`;
+  h += '<div id="tnt"></div>';
+  box.innerHTML = h;
+  box.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => { const t = tugas[+b.dataset.tg]; beep('tap'); S.wil = t.kelas; save(); scrJalur(t.kelas, t.mapel); });
+  if ($('#mrj')) $('#mrj').onclick = () => { if (!due) { toast('Belum ada soal yang jatuh tempo. Kembali besok, ya!'); return; } beep('tap'); mulaiMurajaah(); };
+  // tantangan
+  const T = await getTantangan(); const tb = $('#tnt'); if (!T || !tb) return;
+  const kl = kelasPemain(), n = (T.jumlah || {})[kl] || 0, target = T.target || 1000, pct = Math.min(100, Math.round(n / target * 100));
+  tb.innerHTML = `<div class="info fade"><div class="tag">🐫 Tantangan Kafilah Bersama · pekan ini</div>
+    <h3>Kafilah kelas ${esc(kl)}: ${n.toLocaleString('id-ID')} / ${target.toLocaleString('id-ID')} jawaban benar</h3>
+    <div class="mini"><i style="width:${pct}%;background:#d9a03f"></i></div>
+    <div class="sub">${pct >= 100 ? '🎉 Target pekan ini tercapai! Alhamdulillah, kafilah sampai bersama.' : 'Setiap jawaban benarmu menambah langkah kafilah kelasmu. Tanpa nama, tanpa peringkat. Kita sampai bersama!'}</div></div>`;
+}
+async function getTantangan(){
+  if (DEMO) return {target: 1000, jumlah: {X: 640, XI: 420, XII: 880, Umum: 35}};
+  if (!API_URL) return null;
+  const c = store.get('tantangan', null);
+  if (c && Date.now() - c.t < 10 * 60e3) return c.d;
+  try { const j = await apiGet({action: 'tantangan'}); store.set('tantangan', {t: Date.now(), d: j}); return j; }
+  catch (e) { return c ? c.d : null; }
+}
+async function mulaiMurajaah(){
+  const ids = shuffle(jatuhTempo()).slice(0, 10);
+  app.innerHTML = `<p class="dim center" style="margin-top:40px">Menyiapkan murajaah…</p>`;
+  const grup = {}; ids.forEach(id => { const f = infoId(id); (grup[f.kelas + '|' + f.mapel] = grup[f.kelas + '|' + f.mapel] || []).push(id); });
+  let items = [];
+  for (const k of Object.keys(grup)) {
+    const [kl, mp] = k.split('|');
+    try { const d = await getJalur(kl, mp); if (d) items = items.concat(d.soal.filter(x => grup[k].includes(x.id_soal))); } catch (e) {}
+  }
+  const ada = new Set(items.map(x => x.id_soal));
+  ids.filter(id => !ada.has(id)).forEach(id => delete S.salah[id]); // soal sudah dihapus/nonaktif
+  save();
+  if (!items.length) { toast('Soal murajaah belum bisa dimuat. Periksa internetmu.'); return scrPeta(); }
+  G = {kelas: 'R', mapel: 'Murajaah', no: 'R', isM: false, isR: true, babak: [{jenis: 'MIX', items: shuffle(items)}], bi: 0, ii: 0, pts: 0, max: 0, log: [], kurma: 0, t0: Date.now(), lentera: 3, dead: false, evtAt: -1};
+  babakIntro();
+}
+function selesaiMurajaah(){
+  const benar = G.log.filter(l => l.benar).length, total = G.log.length;
+  S.kurma = Math.max(0, S.kurma + G.kurma); save();
+  const sisa = Object.keys(S.salah).length;
+  beep(benar === total ? 'win' : 'ok');
+  app.innerHTML = `<div class="card res fade" style="margin-top:20px"><div style="font-size:64px">📚</div>
+    <h2 style="font-size:22px;margin-top:6px">Murajaah selesai</h2><div class="big">${benar}/${total}</div>
+    <p class="small">soal dijawab benar · 🌴 +${G.kurma} kurma<br>${sisa ? `Masih ada ${sisa} soal di Kantong Kesalahan. Soal yang benar akan muncul lagi beberapa hari lagi untuk memastikan kamu benar-benar ingat.` : 'Kantong Kesalahan kosong. MasyaAllah!'}</p>
+    <button class="btn gold mt2" id="pt">Kembali ke Peta</button></div>`;
+  $('#pt').onclick = scrPeta;
+}
+
+/* ======================= PWA & OFFLINE ======================= */
+let pwaPrompt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); pwaPrompt = e; });
+const terpasang = () => window.matchMedia && matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+if (!DEMO && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+async function pasangPWA(){
+  if (pwaPrompt) { pwaPrompt.prompt(); try { await pwaPrompt.userChoice; } catch (e) {} pwaPrompt = null; return; }
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="card"><h3>📲 Pasang Rihlah Ilmu</h3><ol class="small" style="padding-left:18px;line-height:1.7">${ios
+    ? '<li>Buka situs ini di <b>Safari</b>.</li><li>Ketuk tombol <b>Bagikan</b> (kotak dengan panah ke atas).</li><li>Pilih <b>Tambahkan ke Layar Utama</b>, lalu <b>Tambah</b>.</li>'
+    : '<li>Buka situs ini di <b>Chrome</b>.</li><li>Ketuk menu <b>⋮</b> di kanan atas.</li><li>Pilih <b>Instal aplikasi</b> atau <b>Tambahkan ke layar utama</b>.</li>'}</ol>
+    <button class="btn gold mt" id="okp">Mengerti</button></div>`;
+  document.body.appendChild(m); m.querySelector('#okp').onclick = () => m.remove();
+}
+async function simpanOffline(){
+  const kl = kelasPemain(); const b = $('#off'); b.disabled = true; let ok = 0;
+  for (const j of JALUR) {
+    b.textContent = `Menyimpan ${j.nama}…`;
+    try { store.del('jalur_' + kl + '_' + j.mapel); if (await getJalur(kl, j.mapel)) ok++; } catch (e) {}
+  }
+  b.disabled = false; b.textContent = '⬇ Simpan soal kelasku untuk main offline';
+  toast(ok === 4 ? `Soal kelas ${kl} tersimpan. Bisa dimainkan tanpa internet.` : 'Sebagian gagal disimpan. Coba lagi saat sinyal bagus.');
+}
+
+/* ======================= MURATTAL ======================= */
+const SURAH = ["Al-Fatihah","Al-Baqarah","Ali 'Imran","An-Nisa'","Al-Ma'idah","Al-An'am","Al-A'raf","Al-Anfal","At-Taubah","Yunus","Hud","Yusuf","Ar-Ra'd","Ibrahim","Al-Hijr","An-Nahl","Al-Isra'","Al-Kahf","Maryam","Taha","Al-Anbiya'","Al-Hajj","Al-Mu'minun","An-Nur","Al-Furqan","Asy-Syu'ara'","An-Naml","Al-Qashash","Al-'Ankabut","Ar-Rum","Luqman","As-Sajdah","Al-Ahzab","Saba'","Fathir","Yasin","Ash-Shaffat","Shad","Az-Zumar","Ghafir","Fushshilat","Asy-Syura","Az-Zukhruf","Ad-Dukhan","Al-Jatsiyah","Al-Ahqaf","Muhammad","Al-Fath","Al-Hujurat","Qaf","Adz-Dzariyat","Ath-Thur","An-Najm","Al-Qamar","Ar-Rahman","Al-Waqi'ah","Al-Hadid","Al-Mujadilah","Al-Hasyr","Al-Mumtahanah","Ash-Shaff","Al-Jumu'ah","Al-Munafiqun","At-Taghabun","Ath-Thalaq","At-Tahrim","Al-Mulk","Al-Qalam","Al-Haqqah","Al-Ma'arij","Nuh","Al-Jinn","Al-Muzzammil","Al-Muddatstsir","Al-Qiyamah","Al-Insan","Al-Mursalat","An-Naba'","An-Nazi'at","'Abasa","At-Takwir","Al-Infithar","Al-Muthaffifin","Al-Insyiqaq","Al-Buruj","Ath-Thariq","Al-A'la","Al-Ghasyiyah","Al-Fajr","Al-Balad","Asy-Syams","Al-Lail","Adh-Dhuha","Asy-Syarh","At-Tin","Al-'Alaq","Al-Qadr","Al-Bayyinah","Az-Zalzalah","Al-'Adiyat","Al-Qari'ah","At-Takatsur","Al-'Ashr","Al-Humazah","Al-Fil","Quraisy","Al-Ma'un","Al-Kautsar","Al-Kafirun","An-Nashr","Al-Lahab","Al-Ikhlas","Al-Falaq","An-Nas"];
+const normS = x => String(x).toLowerCase().replace(/[^a-z]/g, '');
+const ALIAS_S = {almukminun: 23, attawbah: 9, thaha: 20, yaasin: 36, alinsyirah: 94, alisra: 17, annisa: 4, alimran: 3, imran: 3, almaun: 107, annasr: 110, ashshura: 42};
+function noSurah(nama){ const n = normS(nama); const i = SURAH.findIndex(x => normS(x) === n); return i >= 0 ? i + 1 : ALIAS_S[n] || 0; }
+function rujukanAyat(teks){
+  const out = [], re = /QS\.?\s*([A-Za-z'’\- ]+?)\s*(?:\[\d+\])?\s*:\s*(\d+)(?:\s*[-–]\s*(\d+))?/g; let m;
+  while ((m = re.exec(teks)) && out.length < 3) {
+    const no = noSurah(m[1]); if (!no) continue;
+    const a = +m[2], b = Math.min(+(m[3] || m[2]), a + 9);
+    out.push({label: `${m[1].trim()}: ${a}${b > a ? '-' + b : ''}`, s: no, a, b});
+  }
+  return out;
+}
+function tombolMurattal(teks){
+  const r = rujukanAyat(teks); if (!r.length) return '';
+  tombolMurattal.r = r;
+  return '<div>' + r.map((x, i) => `<button class="putar" data-mr="${i}">▶ ${esc(x.label)}</button>`).join('') + '</div>';
+}
+let audioM = null;
+function hentiMurattal(){ if (audioM) { audioM.pause(); audioM = null; } document.querySelectorAll('.putar.on').forEach(b => { b.classList.remove('on'); b.textContent = '▶ ' + b.textContent.slice(2); }); }
+function wireMurattal(){
+  document.querySelectorAll('[data-mr]').forEach(bt => bt.onclick = () => {
+    const sedang = bt.classList.contains('on'); hentiMurattal(); if (sedang) return;
+    const r = tombolMurattal.r[+bt.dataset.mr]; let a = r.a;
+    bt.classList.add('on'); bt.textContent = '■ ' + bt.textContent.slice(2);
+    const main = () => {
+      if (a > r.b || !bt.classList.contains('on')) { hentiMurattal(); return; }
+      audioM = new Audio(`https://everyayah.com/data/Alafasy_128kbps/${String(r.s).padStart(3, '0')}${String(a).padStart(3, '0')}.mp3`);
+      audioM.onended = () => { a++; main(); };
+      audioM.onerror = () => { hentiMurattal(); toast('Audio gagal dimuat. Periksa internetmu.'); };
+      audioM.play().catch(() => { hentiMurattal(); toast('Audio gagal diputar.'); });
+    };
+    main();
+  });
 }
 
 /* ======================= KAFILAH & PASAR ======================= */
@@ -618,12 +789,13 @@ function scrBekal(kelas, mapel, no){
       <div class="tag">Bekal Ilmu · Manzil ${no}</div>
       <h2>${esc(b.judul_bab)}</h2>
       <ol>${poin.map(x => `<li>${esc(x)}</li>`).join('')}</ol>
-      ${b.ayat_hadis ? `<div class="dalil"><b>Dalil kunci:</b> ${esc(b.ayat_hadis)}</div>` : ''}
+      ${b.ayat_hadis ? `<div class="dalil"><b>Dalil kunci:</b> ${esc(b.ayat_hadis)}${tombolMurattal(b.ayat_hadis)}</div>` : ''}
     </div>
     <button class="btn gold mt2" id="go">Siap Diuji</button>
     ${kartu.length ? `<button class="btn ghost mt" id="kk">Ulang dengan Kartu Kilat (${kartu.length})</button>` : ''}`;
-  wireTop(() => scrJalur(kelas, mapel));
-  $('#go').onclick = () => { beep('tap'); mulai(kelas, mapel, no); };
+  wireTop(() => { hentiMurattal(); scrJalur(kelas, mapel); });
+  wireMurattal();
+  $('#go').onclick = () => { hentiMurattal(); beep('tap'); mulai(kelas, mapel, no); };
   if (kartu.length) $('#kk').onclick = () => scrKartu(kelas, mapel, no, shuffle(kartu));
 }
 
@@ -690,18 +862,18 @@ function wireQuit(){
     m.innerHTML = `<div class="card center"><h3>Berhenti di tengah jalan?</h3><p class="small mt">Kemajuan di manzil ini tidak disimpan.</p><button class="btn gold mt2" id="mlj">Lanjutkan bermain</button><button class="btn plain mt" id="mkl">Keluar</button></div>`;
     document.body.appendChild(m);
     m.querySelector('#mlj').onclick = () => m.remove();
-    m.querySelector('#mkl').onclick = () => { m.remove(); clearInterval(G && G.timer); G.isI ? scrPeta() : scrJalur(G.kelas, G.mapel); };
+    m.querySelector('#mkl').onclick = () => { m.remove(); clearInterval(G && G.timer); G.isI || G.isR ? scrPeta() : scrJalur(G.kelas, G.mapel); };
   };
 }
 
 function babakIntro(){
   if (G.evtAt === G.bi && !G.evtDone) { G.evtDone = true; return peristiwa(); }
   const b = G.babak[G.bi];
-  const nama = G.isI ? 'Ujian Ijazah' : G.isM ? 'Munazharah' : NAMA_JENIS[b.jenis];
+  const nama = G.isR ? 'Murajaah' : G.isI ? 'Ujian Ijazah' : G.isM ? 'Munazharah' : NAMA_JENIS[b.jenis];
   app.innerHTML = hud() + `<div class="card center fade" style="padding:28px 18px">
-    <div class="tag">${G.isI ? 'Ujian akhir wilayah' : G.isM ? 'Tantangan akhir jalur' : 'Babak ' + (G.bi + 1) + ' dari ' + G.babak.length}</div>
+    <div class="tag">${G.isR ? 'Mengulang soal yang pernah keliru' : G.isI ? 'Ujian akhir wilayah' : G.isM ? 'Tantangan akhir jalur' : 'Babak ' + (G.bi + 1) + ' dari ' + G.babak.length}</div>
     <h2 style="font-size:24px;margin:8px 0">${nama}</h2>
-    <p class="small">${G.isI ? 'Jawab ' + G.babak[0].items.length + ' soal dari keempat jalur. Raih nilai 70 untuk mendapatkan ijazah atas namamu.' : G.isM ? 'Jawab 10 soal campuran dari seluruh manzil. Setiap jawaban salah memadamkan satu lentera. Raih nilai 70 untuk mendapat kitab.' : petunjuk(b.jenis)}</p>
+    <p class="small">${G.isR ? 'Soal-soal ini pernah kamu jawab keliru. Jawab benar tiga kali (di hari berbeda) agar soal keluar dari Kantong Kesalahan. Tidak memengaruhi nilai rapor.' : G.isI ? 'Jawab ' + G.babak[0].items.length + ' soal dari keempat jalur. Raih nilai 70 untuk mendapatkan ijazah atas namamu.' : G.isM ? 'Jawab 10 soal campuran dari seluruh manzil. Setiap jawaban salah memadamkan satu lentera. Raih nilai 70 untuk mendapat kitab.' : petunjuk(b.jenis)}</p>
     <button class="btn gold mt2" id="go">Mulai</button></div>`;
   wireQuit();
   $('#go').onclick = () => { beep('tap'); item(); };
@@ -729,6 +901,7 @@ function item(){
 
 function jawab(ok, pts, max, logs, pesan, bahas){
   G.pts += pts; G.max += max; G.log.push(...logs);
+  kantong(logs);
   const benar = logs.filter(l => l.benar).length; G.kurma += benar * (G.badai === G.bi ? 2 : 1);
   beep(ok ? 'ok' : 'no');
   if (G.isM && !ok) { G.lentera--; if (G.lentera <= 0) G.dead = true; }
@@ -808,7 +981,7 @@ function gPG(s){
 /* --- BS --- */
 function gBS(s){
   const truth = String(s.kunci).trim().toUpperCase().startsWith('B');
-  app.innerHTML = head(itemLabel()) + `${G.isM || G.isI ? '' : '<div class="timer"><i id="tm"></i></div>'}<div class="qtext">${esc(s.pertanyaan)}</div>
+  app.innerHTML = head(itemLabel()) + `${G.isM || G.isI || G.isR ? '' : '<div class="timer"><i id="tm"></i></div>'}<div class="qtext">${esc(s.pertanyaan)}</div>
     <div class="duo"><button class="opt" data-v="1">✔ Benar</button><button class="opt" data-v="0">✘ Salah</button></div></div>`;
   wireQuit();
   let done = false;
@@ -820,7 +993,7 @@ function gBS(s){
     jawab(ok, ok ? 10 : 0, 10, [{id_soal: s.id_soal, jawaban: v === null ? '(waktu habis)' : (v ? 'BENAR' : 'SALAH'), benar: ok}], v === null ? 'Waktu habis!' : null, s.pembahasan);
   };
   app.querySelectorAll('.opt').forEach(x => x.onclick = () => fin(x.dataset.v === '1'));
-  if (!G.isM && !G.isI) {
+  if (!G.isM && !G.isI && !G.isR) {
     const t0 = Date.now(), dur = 10000;
     G.timer = setInterval(() => {
       const left = Math.max(0, dur - (Date.now() - t0));
@@ -939,6 +1112,7 @@ function catat(kelas, mapel, no, nilai, dur, waktu, tahap){
 function selesai(){
   clearInterval(G.timer);
   if (G.isI) return selesaiIjazah();
+  if (G.isR) return selesaiMurajaah();
   const nilai = G.max ? Math.round(G.pts / G.max * 100) : 0;
   const bintang = starsOf(nilai);
   const dur = Math.round((Date.now() - G.t0) / 1000);
@@ -1129,6 +1303,10 @@ function scrPaspor(){
       <div class="lencana">${LENCANA.map(l => `<span class="${l.cek() ? '' : 'off'}" title="${esc(l.syarat)}">${l.cek() ? l.ikon : '🔒'} ${esc(l.nama)}</span>`).join('')}</div>
       <p class="small mt">🔥 Bekal Harian: ${S.harian.last === hariIni() || S.harian.last === kemarin() ? S.harian.streak : 0} hari berturut-turut · rekor ${S.harian.best || 0} hari</p>
       <button class="btn plain mt" id="psr" style="min-height:42px;padding:10px">🐪 Pasar Kafilah</button>
+      <h3 class="sec">Aplikasi di HP</h3>
+      ${terpasang() ? '<p class="small">✅ Rihlah Ilmu sudah terpasang di HP ini.</p>' : '<button class="btn plain mt" id="pwa" style="min-height:42px;padding:10px">📲 Pasang di layar utama HP</button>'}
+      <button class="btn plain mt" id="off" style="min-height:42px;padding:10px">⬇ Simpan soal kelasku untuk main offline</button>
+      ${S.player.rombel ? `<p class="small mt">Rombel: <b>${esc(S.player.rombel)}</b></p>` : ''}
       <h3 class="sec">Kode Lanjut</h3>
       <div class="kode">${esc(p.kode)}</div>
       <p class="small mt">Catat kode ini untuk melanjutkan perjalanan di HP lain. Ini bukan kata sandi.</p>
@@ -1150,13 +1328,15 @@ function scrPaspor(){
   const lm = lemah.slice(0, 5);
   app.querySelectorAll('[data-sr]').forEach(b => b.onclick = () => { const x = lm[+b.dataset.sr]; beep('tap'); scrJalur(x.kl, x.mp); });
   $('#psr').onclick = scrPasar;
+  if ($('#pwa')) $('#pwa').onclick = pasangPWA;
+  $('#off').onclick = simpanOffline;
   $('#ed').onclick = () => scrIdentitas(true);
   $('#gp').onclick = () => {
     const m = document.createElement('div'); m.className = 'modal';
     m.innerHTML = `<div class="card center"><h3>Ganti pemain?</h3><p class="small mt">Perjalanan ${esc(p.nama)} akan dihapus dari HP ini. Catat dulu Kode Lanjut <b>${esc(p.kode)}</b> agar bisa dipulihkan.</p><button class="btn gold mt2" id="mb">Batal</button><button class="btn plain mt" id="my">Ya, ganti pemain</button></div>`;
     document.body.appendChild(m);
     m.querySelector('#mb').onclick = () => m.remove();
-    m.querySelector('#my').onclick = () => { m.remove(); ['player','prog','hist','kurma','wil','harian','kafilah'].forEach(store.del); S = {player:null, prog:{}, hist:[], kurma:0, mute:S.mute, wil:null, harian:{last:'', streak:0, best:0, total:0}, kafilah:{punya:['unta'], pakai:{kendaraan:'unta', panji:'', bawaan:''}}}; scrGerbang(); };
+    m.querySelector('#my').onclick = () => { m.remove(); ['player','prog','hist','kurma','wil','harian','kafilah','salah'].forEach(store.del); S = {salah:{}, player:null, prog:{}, hist:[], kurma:0, mute:S.mute, wil:null, harian:{last:'', streak:0, best:0, total:0}, kafilah:{punya:['unta'], pakai:{kendaraan:'unta', panji:'', bawaan:''}}}; scrGerbang(); };
   };
 }
 
