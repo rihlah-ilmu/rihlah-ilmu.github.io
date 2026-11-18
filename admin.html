@@ -66,6 +66,8 @@ input::placeholder{text-transform:none}
 
 <script src="config.js"></script>
 <script>
+const KELAS_MTS = ['VII','VIII','IX'], KELAS_MA = ['X','XI','XII'], KELAS_ALL = KELAS_MTS.concat(KELAS_MA, ['Umum']);
+const URUT_KELAS = k => { const i = KELAS_ALL.indexOf(k); return i < 0 ? 99 : i; };
 const API_URL = /^https:\/\//.test(String(window.RIHLAH_API_URL || "").trim()) ? String(window.RIHLAH_API_URL).trim() : "";   // diatur di file config.js
 const DEMO_ADMIN = /*DEMO_ADMIN*/null;
 
@@ -115,7 +117,7 @@ function hasilTersaring(){
 function daftarJalur(){
   const s = new Set(D.hasil.map(h => h.wilayah + '|' + h.mapel));
   D.materi.forEach(m => s.add(m.kelas + '|' + m.mapel));
-  return [...s].sort();
+  return [...s].sort((a, b) => { const [ka, ma] = a.split('|'), [kb, mb] = b.split('|'); return URUT_KELAS(ka) - URUT_KELAS(kb) || (ma < mb ? -1 : 1); });
 }
 const cocokRombel = p => !F.rombel || (p.rombel || '') === F.rombel;
 function judulBab(kelas, mapel, no){ const m = D.materi.find(x => x.kelas === kelas && x.mapel === mapel && x.no_bab === no); return m ? m.judul_bab : 'Bab ' + no; }
@@ -130,7 +132,7 @@ function tampil(){
     ${DEMO_ADMIN ? '<div class="card small" style="background:#fff4d8">Pratinjau dengan <b>data contoh</b> (bukan pemain sungguhan). Versi asli menampilkan data dari Google Sheet.</div>' : ''}
     <nav>${[['ringkasan','Ringkasan'],['pemain','Daftar Pemain'],['tugas','Tugas'],['peta','Peta Kemampuan'],['soal','Analisis Soal'],['unduh','Unduh Data']].map(([k, n]) => `<button data-t="${k}" class="${TAB === k ? 'on' : ''}">${n}</button>`).join('')}</nav>
     <div class="filters">
-      <select id="fk">${['Semua','X','XI','XII','Umum'].map(k => `<option ${F.kelas === k ? 'selected' : ''} value="${k}">${k === 'Semua' ? 'Semua kelas pemain' : 'Pemain kelas ' + k}</option>`).join('')}</select>
+      <select id="fk">${['Semua'].concat(KELAS_ALL).map(k => `<option ${F.kelas === k ? 'selected' : ''} value="${k}">${k === 'Semua' ? 'Semua kelas pemain' : 'Pemain kelas ' + k}</option>`).join('')}</select>
       <select id="fj"><option value="">Semua jalur</option>${jalurOpt}</select>
       ${rombelList().length ? `<select id="fb"><option value="">Semua rombel</option>${rombelList().map(r => `<option ${F.rombel === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>` : ''}
       <select id="fr">${[['7','7 hari terakhir'],['30','30 hari terakhir'],['90','90 hari terakhir'],['semua','Semua waktu']].map(([v, n]) => `<option value="${v}" ${F.rentang === v ? 'selected' : ''}>${n}</option>`).join('')}</select>
@@ -157,8 +159,9 @@ function ringkasan(){
   const hariIni = new Date(); hariIni.setHours(0, 0, 0, 0);
   const aktif7 = new Set(D.hasil.filter(h => new Date(h.waktu) >= Date.now() - 7 * 864e5).map(h => h.id_pemain));
   const mainHariIni = H.filter(h => new Date(h.waktu) >= hariIni).length;
-  const perKelas = ['X','XI','XII','Umum'].map(k => {
+  const perKelas = KELAS_ALL.map(k => {
     const ps = D.pemain.filter(p => p.kelas === k), hs = H.filter(h => h.kelas_pemain === k);
+    if (!ps.length && !hs.length) return '';
     return `<tr><td>${k}</td><td class="num">${ps.length}</td><td class="num">${hs.length}</td><td class="num">${avg(hs.map(h => h.nilai)) ?? '-'}</td></tr>`;
   }).join('');
   const hit = {};
@@ -275,7 +278,7 @@ function peta(){
   const best = {};
   H.forEach(h => { const k = h.id_pemain + '|' + h.no_bab; best[k] = Math.max(best[k] || 0, h.nilai); });
   const pk = {}; D.pemain.forEach(p => pk[p.id_pemain] = p);
-  const baris = ['X','XI','XII','Umum'].filter(k => F.kelas === 'Semua' || F.kelas === k).map(k => {
+  const baris = KELAS_ALL.filter(k => (F.kelas === 'Semua' || F.kelas === k) && Object.keys(best).some(key => (pk[key.split('|')[0]] || {}).kelas === k)).map(k => {
     const cells = babs.map(no => {
       const v = Object.entries(best).filter(([key]) => { const [id, n] = key.split('|'); return +n === no && pk[id] && pk[id].kelas === k; }).map(([, v]) => v);
       const a = avg(v);
@@ -336,7 +339,7 @@ function tabTugas(){
     <p class="small" style="margin:0 0 10px">Tugas muncul di Peta siswa dengan kelas dan rombel yang sesuai (rombel induk seperti <code>MAN2SMG</code> mencakup <code>MAN2SMG-XI-A</code>, <code>MAN2SMG-XI-B</code>, dan seterusnya). Siswa dianggap selesai jika semua manzil dalam rentang meraih minimal satu bintang.</p>
     <div class="form">
       <div style="grid-column:1/-1"><label>Judul tugas</label><input id="tj" maxlength="80" placeholder="Contoh: Persiapan ulangan bab Muamalah"></div>
-      <div><label>Kelas</label><select id="tk">${['X','XI','XII'].map(k => `<option>${k}</option>`).join('')}</select></div>
+      <div><label>Kelas</label><select id="tk"><optgroup label="MTs">${KELAS_MTS.map(k => `<option>${k}</option>`).join('')}</optgroup><optgroup label="MA">${KELAS_MA.map(k => `<option>${k}</option>`).join('')}</optgroup></select></div>
       <div><label>Mapel</label><select id="tm">${MAPEL.map(m => `<option>${esc(m)}</option>`).join('')}</select></div>
       <div><label>Dari manzil</label><input id="td" type="number" min="1" value="1"></div>
       <div><label>Sampai manzil</label><input id="ts" type="number" min="1" value="1"></div>

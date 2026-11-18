@@ -1,5 +1,5 @@
 // Rihlah Ilmu — service worker: membuat aplikasi bisa dipasang dan dibuka tanpa internet.
-const VERSI = 'rihlah-v1';
+const VERSI = 'rihlah-v2';
 const INTI = ['./', './index.html', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

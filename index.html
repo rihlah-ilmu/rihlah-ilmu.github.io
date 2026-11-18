@@ -55,6 +55,21 @@ label.lbl{display:block;font-size:13px;font-weight:700;color:var(--muted);margin
 input.txt{width:100%;padding:14px;border-radius:12px;border:2px solid var(--line);font:inherit;font-size:16px;background:#fff}
 input.txt:focus{outline:none;border-color:var(--gold)}
 .kelas{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.kelas.k3{grid-template-columns:40px repeat(3,1fr);align-items:center;margin-bottom:8px}
+.kelas.k1{grid-template-columns:1fr}
+.kelas .jl{font-size:12px;font-weight:800;color:#5b5f6b}
+.jenjang{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.jenjang button{border:0;border-radius:12px;padding:9px 6px;font-weight:800;font-size:13px;background:rgba(255,255,255,.1);color:#cfd6ea}
+.jenjang button.on{background:var(--gold);color:#3b2b05}
+.tokohbar{display:flex;align-items:center;gap:10px;width:100%;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:#fff;border-radius:14px;padding:6px 12px;margin-bottom:12px;text-align:left;font-weight:700;font-size:13px}
+.tokohbar svg{flex:none}
+.modal .card.tokoh{max-height:86vh;overflow:auto}
+.tokoh ul{padding-left:18px;margin:6px 0}
+.tokoh li{margin-bottom:6px}
+.kisah{margin-top:14px;padding:12px 14px;border-radius:12px;background:#eef6f1;border-left:4px solid #2e9e7a}
+.kisah h3{font-size:16px;margin:4px 0 6px}
+.kisah p{margin:0 0 6px;font-size:14px;line-height:1.55}
+.kafilah.laut .jalan{border-top:3px dotted rgba(140,205,255,.6)}
 .kelas button{border:2px solid var(--line);background:#fff;border-radius:12px;padding:12px 0;font-weight:800}
 .kelas button.on{border-color:var(--gold);background:#fff4d8}
 .err{color:var(--no);font-size:13px;margin-top:8px;min-height:18px}
@@ -241,10 +256,17 @@ const DEMO = /*DEMO*/null;   // diisi otomatis pada versi demo
 
 /* ======================= DATA TETAP ======================= */
 const WILAYAH = [
-  {kelas:'X', nama:'Hijaz', tujuan:'Madinah', warna:'linear-gradient(135deg,#c98b3c,#8a5a22)'},
-  {kelas:'XI', nama:'Syam dan Irak', tujuan:'Baghdad', warna:'linear-gradient(135deg,#3c8a6a,#1f5a4a)'},
-  {kelas:'XII', nama:'Mesir hingga Nusantara', tujuan:'Nusantara', warna:'linear-gradient(135deg,#3c6fa8,#1e3f6e)'}
+  {kelas:'VII', jenjang:'MTs', nama:'Serambi Mekah', tujuan:'Banda Aceh', asal:'Samudera Pasai', warna:'linear-gradient(135deg,#2f8f83,#165a5a)'},
+  {kelas:'VIII', jenjang:'MTs', nama:'Tanah Para Wali', tujuan:'Demak', asal:'Gresik', warna:'linear-gradient(135deg,#5f8f3a,#2f5a1e)'},
+  {kelas:'IX', jenjang:'MTs', nama:'Negeri Rempah', tujuan:'Ternate', asal:'Gowa', warna:'linear-gradient(135deg,#b8643a,#6e321c)'},
+  {kelas:'X', jenjang:'MA', nama:'Hijaz', tujuan:'Madinah', asal:'Makkah', warna:'linear-gradient(135deg,#c98b3c,#8a5a22)'},
+  {kelas:'XI', jenjang:'MA', nama:'Syam dan Irak', tujuan:'Baghdad', asal:'Damaskus', warna:'linear-gradient(135deg,#3c8a6a,#1f5a4a)'},
+  {kelas:'XII', jenjang:'MA', nama:'Mesir hingga Nusantara', tujuan:'Nusantara', asal:'Kairo', warna:'linear-gradient(135deg,#3c6fa8,#1e3f6e)'}
 ];
+const KELAS_MTS = ['VII','VIII','IX'], KELAS_MA = ['X','XI','XII'], KELAS_WIL = KELAS_MTS.concat(KELAS_MA);
+const jenjangOf = k => KELAS_MTS.includes(k) ? 'MTs' : 'MA';
+const wilAwal = k => KELAS_WIL.includes(k) ? k : 'X';
+const lautKah = k => jenjangOf(k) === 'MTs';
 const JALUR = [
   {mapel:"Al-Qur'an Hadis", nama:'Jalur Mushaf', warna:'#2e9e7a', ikon:'📖'},
   {mapel:'Akidah Akhlak', nama:'Jalur Hati', warna:'#4a90c8', ikon:'🤲'},
@@ -278,9 +300,11 @@ let S = {
   mute: store.get('mute', false),
   wil: store.get('wil', null),
   harian: store.get('harian', {last: '', streak: 0, best: 0, total: 0}),
-  kafilah: store.get('kafilah', {punya: ['unta'], pakai: {kendaraan: 'unta', panji: '', bawaan: ''}}),
+  kafilah: store.get('kafilah', {punya: ['unta', 'pinisi'], pakai: {kendaraan: 'unta', perahu: 'pinisi', panji: '', bawaan: ''}}),
   salah: store.get('salah', {})
 };
+if (!S.kafilah.punya.includes('pinisi')) S.kafilah.punya.push('pinisi');
+if (!S.kafilah.pakai.perahu) S.kafilah.pakai.perahu = 'pinisi';
 function save(){ ['player','prog','hist','kurma','mute','wil','harian','kafilah','salah'].forEach(k => store.set(k, S[k])); }
 
 /* suara */
@@ -368,12 +392,40 @@ function kirimDaftar(){
 /* ======================= LAYAR: GERBANG & IDENTITAS ======================= */
 const SIRAJ = `<svg width="40" height="52" viewBox="0 0 40 52"><path d="M20 2 l6 8 h-12z" fill="#e7b84a"/><rect x="11" y="10" width="18" height="4" rx="2" fill="#b58a2a"/><path d="M9 14 h22 l-3 28 h-16z" fill="#f6d67e" opacity=".95"/><ellipse cx="20" cy="29" rx="6" ry="9" fill="#fff4c7"/><path d="M20 23 q4 6 0 12 q-4 -6 0 -12z" fill="#e7a43a"/><rect x="9" y="42" width="22" height="5" rx="2" fill="#b58a2a"/></svg>`;
 
+/* ======================= TOKOH MTs: ANAS & ASMA ======================= */
+const TOKOH = (h = 60) => `<svg width="${Math.round(h * 1.5)}" height="${h}" viewBox="0 0 96 64" aria-hidden="true">
+  <path d="M8 64 v-12 a16 13 0 0 1 32 0 v12z" fill="#2e9e7a"/><path d="M24 40 v24" stroke="#1f7a5c" stroke-width="2"/>
+  <circle cx="24" cy="25" r="11" fill="#f2c9a0"/><rect x="13" y="11" width="22" height="9" rx="2" fill="#1f2a44"/>
+  <circle cx="20" cy="26" r="1.4" fill="#3b2b1a"/><circle cx="28" cy="26" r="1.4" fill="#3b2b1a"/><path d="M20 31 q4 3 8 0" stroke="#3b2b1a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M56 64 v-14 a16 14 0 0 1 32 0 v14z" fill="#c0603f"/><circle cx="72" cy="27" r="14" fill="#c0603f"/>
+  <ellipse cx="72" cy="28" rx="8.5" ry="9.5" fill="#f2c9a0"/>
+  <circle cx="68.5" cy="28" r="1.4" fill="#3b2b1a"/><circle cx="75.5" cy="28" r="1.4" fill="#3b2b1a"/><path d="M68.5 32.5 q3.5 2.6 7 0" stroke="#3b2b1a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M46 46 l0 -10 l-3 -4 h6 l-3 4" fill="#e7b84a"/></svg>`;
+function kenalTokoh(){
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="card tokoh fade"><div class="center">${TOKOH(70)}<div class="tag mt">Kenali Tokoh</div><h3 style="margin-top:2px">Siapa Anas dan Asma?</h3></div>
+    <p class="small">Anas dan Asma adalah dua santri kakak-beradik dalam cerita Rihlah Ilmu. Mereka <b>tokoh rekaan, bukan sahabat Nabi</b>. Bersama Siraj si lentera, mereka berlayar dengan kapal pinisi menjelajahi Nusantara.</p>
+    <p class="small">Orang tua mereka memberi nama itu dengan harapan anak-anaknya meneladani dua sahabat Nabi:</p>
+    <ul class="small"><li><b>Anas bin Malik</b>, sahabat dari kaum Anshar di Madinah. Sejak kecil ia melayani Nabi saw. dan kelak menjadi salah satu perawi hadis terbanyak.</li>
+    <li><b>Asma binti Abu Bakar</b>, sahabat dari kaum Muhajirin asal Mekah. Ia berani mengantarkan bekal untuk Nabi saw. saat hijrah.</li></ul>
+    <p class="small">Dalam sejarah, Anas bin Malik dan Asma binti Abu Bakar <b>tidak bersaudara</b>. Mereka sama-sama sahabat Nabi yang mulia. Kisah asli keduanya akan kamu temukan di Bekal Ilmu sepanjang perjalanan.</p>
+    <button class="btn gold mt" id="okt">Ayo berlayar!</button></div>`;
+  document.body.appendChild(m);
+  m.querySelector('#okt').onclick = () => { beep('tap'); m.remove(); };
+}
+const KISAH = [{"tokoh": "Anas bin Malik", "judul": "Pelayan kecil Rasulullah", "isi": "Saat Anas berusia sekitar sepuluh tahun, ibunya, Ummu Sulaim, membawanya kepada Nabi saw. agar ia melayani beliau. Anas melayani Nabi sekitar sepuluh tahun. Ia bercerita, selama itu Nabi tidak pernah berkata \"ah\" kepadanya, dan tidak pernah menegur \"mengapa kamu lakukan ini?\".", "ibrah": "Kelembutan kepada yang lebih muda; berbakti dengan sungguh-sungguh.", "sumber": "HR. Bukhari dan Muslim", "k": "VIII", "m": "Akidah Akhlak", "b": 5}, {"tokoh": "Anas bin Malik", "judul": "Menjaga rahasia", "isi": "Suatu hari Nabi saw. menyuruh Anas untuk suatu keperluan, sehingga ia terlambat pulang. Ibunya bertanya ke mana ia pergi. Anas menjawab, itu rahasia Rasulullah. Ibunya berkata, \"Jangan ceritakan rahasia Rasulullah kepada siapa pun.\"", "ibrah": "Amanah dan menjaga rahasia, lawan dari sifat munafik.", "sumber": "HR. Muslim", "k": "VII", "m": "Akidah Akhlak", "b": 8}, {"tokoh": "Anas bin Malik", "judul": "Tertangkap bermain", "isi": "Nabi saw. menyuruh Anas pergi untuk suatu urusan. Anas kecil menjawab \"Aku tidak mau pergi\", padahal dalam hati ia berniat pergi. Di jalan ia malah bermain dengan anak-anak di pasar. Nabi datang, memegang tengkuknya dari belakang sambil tersenyum, lalu berkata, \"Anas kecil, pergilah ke tempat yang kusuruh.\" Anas pun segera berangkat.", "ibrah": "Menegur dengan senyum; segera menunaikan tugas.", "sumber": "HR. Muslim", "k": "IX", "m": "Akidah Akhlak", "b": 3}, {"tokoh": "Anas bin Malik", "judul": "Didoakan Nabi", "isi": "Ummu Sulaim memohon Nabi saw. mendoakan Anas. Nabi berdoa agar Allah memperbanyak harta dan anaknya, serta memberkahi apa yang diberikan kepadanya. Anas kemudian berumur panjang, keturunannya banyak, dan ia menjadi salah satu sahabat yang paling banyak meriwayatkan hadis.", "ibrah": "Kekuatan doa; ilmu yang terus mengalir manfaatnya.", "sumber": "HR. Bukhari dan Muslim", "k": "VII", "m": "Akidah Akhlak", "b": 9}, {"tokoh": "Asma binti Abu Bakar", "judul": "Dzatun Nithaqain", "isi": "Ketika Nabi saw. dan Abu Bakar bersembunyi di Gua Tsur, Asma menyiapkan bekal makanan dan minuman. Ia tidak menemukan tali pengikat, lalu membelah ikat pinggangnya (nithaq) menjadi dua untuk mengikat bekal itu. Sejak itu ia dijuluki Dzatun Nithaqain, pemilik dua ikat pinggang.", "ibrah": "Berani, cerdik, dan rela berkorban untuk kebaikan.", "sumber": "HR. Bukhari", "k": "VII", "m": "SKI", "b": 2}, {"tokoh": "Asma binti Abu Bakar", "judul": "Menenangkan kakek", "isi": "Setelah Abu Bakar berhijrah, kakek Asma, Abu Quhafah, yang sudah tidak bisa melihat, khawatir anaknya membawa pergi semua harta. Asma meletakkan batu-batu di tempat penyimpanan harta, menutupnya dengan kain, lalu membimbing tangan kakeknya untuk merabanya agar ia tenang.", "ibrah": "Menyayangi dan menenangkan orang tua.", "sumber": "Sirah Ibnu Ishaq (riwayat Ahmad)", "k": "VIII", "m": "Akidah Akhlak", "b": 11}, {"tokoh": "Asma binti Abu Bakar", "judul": "Tetap berbakti kepada ibu", "isi": "Ibu Asma yang belum masuk Islam datang berkunjung. Asma bertanya kepada Nabi saw., bolehkah ia menyambung hubungan dengan ibunya. Nabi menjawab, \"Ya, sambunglah hubungan dengan ibumu.\"", "ibrah": "Berbakti kepada orang tua walaupun berbeda keyakinan; toleransi.", "sumber": "HR. Bukhari dan Muslim", "k": "VIII", "m": "Akidah Akhlak", "b": 5}, {"tokoh": "Asma binti Abu Bakar", "judul": "Pekerja keras yang sederhana", "isi": "Setelah menikah dengan Zubair bin Awwam, Asma hidup sederhana. Ia sendiri merawat kuda, mengambil air, dan memikul biji kurma dari kebun yang jauh di atas kepalanya.", "ibrah": "Kerja keras, mandiri, dan qana'ah.", "sumber": "HR. Bukhari dan Muslim", "k": "IX", "m": "Akidah Akhlak", "b": 2}];
+function kisahHTML(kelas, mapel, no){
+  const k = KISAH.find(x => x.k === kelas && x.m === mapel && x.b === no); if (!k) return '';
+  return `<div class="kisah"><div class="tag">✨ Kisah asli sahabat Nabi: ${esc(k.tokoh)}</div><h3>${esc(k.judul)}</h3>
+    <p>${esc(k.isi)}</p><p class="small"><b>Pelajaran:</b> ${esc(k.ibrah)}<br>Sumber: ${esc(k.sumber)}</p></div>`;
+}
+
 function scrGerbang(){
   const p = S.player;
   app.innerHTML = `<div class="gate fade">
     <div class="ar">رِحْلَةُ الْعِلْمِ</div>
     <h1>Rihlah <span>Ilmu</span></h1>
-    <p>Perjalanan menuntut ilmu dari Hijaz sampai Nusantara. Pelajari Al-Qur'an Hadis, Akidah Akhlak, Fikih, dan SKI untuk kelas X, XI, dan XII.</p>
+    <p>Perjalanan menuntut ilmu menjelajahi Nusantara dan negeri-negeri Islam. Pelajari Al-Qur'an Hadis, Akidah Akhlak, Fikih, dan SKI untuk MTs (kelas VII–IX) dan MA (kelas X–XII).</p>
     <div class="siraj">${SIRAJ}<div>${p ? `Ahlan wa sahlan kembali, <b>${esc(p.nama.split(' ')[0])}</b>! Kafilahmu sudah menunggu.` : 'Assalamu\'alaikum, musafir ilmu! Aku Siraj, lentera pemandumu. Siap berangkat?'}</div></div>
     <button class="btn gold" id="go">${p ? 'Lanjutkan Perjalanan' : 'Mulai Perjalanan'}</button>
     ${p ? '' : `<button class="btn ghost mt" id="kode">Punya Kode Lanjut?</button>`}
@@ -393,7 +445,8 @@ function scrIdentitas(edit){
       <label class="lbl" for="nm">Nama</label>
       <input class="txt" id="nm" maxlength="30" placeholder="Contoh: Ahmad Fauzi" value="${esc(p.nama || '')}" autocomplete="name">
       <label class="lbl mt">Kelas</label>
-      <div class="kelas">${['X','XI','XII','Umum'].map(k => `<button data-k="${k}" class="${k === kelas ? 'on' : ''}">${k}</button>`).join('')}</div>
+      ${[['MTs', KELAS_MTS], ['MA', KELAS_MA]].map(([jl, ks]) => `<div class="kelas k3"><span class="jl">${jl}</span>${ks.map(k => `<button data-k="${k}" class="${k === kelas ? 'on' : ''}">${k}</button>`).join('')}</div>`).join('')}
+      <div class="kelas k1"><button data-k="Umum" class="${kelas === 'Umum' ? 'on' : ''}">Umum (bukan siswa MTs/MA)</button></div>
       <label class="lbl mt" for="rb">Kode rombel <span class="small">(opsional, dari gurumu)</span></label>
       <input class="txt" id="rb" maxlength="20" placeholder="Contoh: MAN2SEM-K7P-XI-A" value="${esc(p.rombel || '')}" style="text-transform:uppercase">
       <div class="err" id="er"></div>
@@ -415,8 +468,8 @@ function scrIdentitas(edit){
       const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       let kode = 'RH-'; for (let i = 0; i < 4; i++) kode += a[Math.floor(Math.random() * a.length)];
       S.player = {id, nama, kelas, kode, rombel};
-      if (!S.wil) S.wil = ['X','XI','XII'].includes(kelas) ? kelas : 'X';
-    } else { S.player.nama = nama; S.player.kelas = kelas; S.player.rombel = rombel; }
+      if (!S.wil) S.wil = wilAwal(kelas);
+    } else { if (S.player.kelas !== kelas && KELAS_WIL.includes(kelas)) S.wil = kelas; S.player.nama = nama; S.player.kelas = kelas; S.player.rombel = rombel; }
     save(); kirimDaftar(); beep('win');
     edit ? scrPaspor() : scrPeta();
   };
@@ -443,7 +496,7 @@ function scrLanjut(){
       S.player = {id: j.pemain.id_pemain, nama: j.pemain.nama, kelas: j.pemain.kelas, kode: j.pemain.kode_lanjut, rombel: j.pemain.rombel || ''};
       S.prog = {}; S.hist = [];
       j.hasil.sort((a, b) => a.waktu < b.waktu ? -1 : 1).forEach(h => catat(h.wilayah, h.jenis_tahap === 'ijazah' ? 'Ujian' : h.mapel, h.jenis_tahap === 'munazharah' ? 'M' : h.jenis_tahap === 'ijazah' ? 'I' : h.no_bab, h.nilai, h.durasi_detik, h.waktu, h.jenis_tahap));
-      S.wil = ['X','XI','XII'].includes(S.player.kelas) ? S.player.kelas : 'X';
+      S.wil = wilAwal(S.player.kelas);
       save(); toast('Perjalanan berhasil dipulihkan'); scrPeta();
     } catch (e) {
       $('#ok').textContent = 'Pulihkan Perjalanan';
@@ -476,12 +529,22 @@ function jalurPct(kelas, mapel, babCount){
 }
 
 async function scrPeta(){
-  if (!S.wil) S.wil = 'X';
-  app.innerHTML = topbar() + `<div class="white" style="margin:4px 2px 12px"><h2 style="font-size:21px">Peta Rihlah</h2><p class="dim" style="font-size:14px;margin-top:2px">Pilih wilayah, lalu pilih jalur yang ingin ditempuh.</p></div>
-    <div class="tabs">${WILAYAH.map(w => `<button data-k="${w.kelas}" class="${w.kelas === S.wil ? 'on' : ''}">Kelas ${w.kelas}</button>`).join('')}</div>
+  if (!S.wil || !KELAS_WIL.includes(S.wil)) S.wil = wilAwal(S.player && S.player.kelas);
+  const jj = jenjangOf(S.wil);
+  app.innerHTML = topbar() + `<div class="white" style="margin:4px 2px 12px"><h2 style="font-size:21px">Peta Rihlah</h2><p class="dim" style="font-size:14px;margin-top:2px">Pilih jenjang dan wilayah, lalu pilih jalur yang ingin ditempuh.</p></div>
+    <div class="jenjang">${['MTs', 'MA'].map(j => `<button data-j="${j}" class="${j === jj ? 'on' : ''}">${j === 'MTs' ? '⛵ MTs · Nusantara' : '🐪 MA · Hijaz'}</button>`).join('')}</div>
+    <div class="tabs">${WILAYAH.filter(w => w.jenjang === jj).map(w => `<button data-k="${w.kelas}" class="${w.kelas === S.wil ? 'on' : ''}">Kelas ${w.kelas}</button>`).join('')}</div>
+    ${jj === 'MTs' ? `<button class="tokohbar" id="kt">${TOKOH(44)}<span>Berlayar bersama <b>Anas</b>, <b>Asma</b>, dan Siraj<br><span style="color:#cfd6ea;font-weight:600">Kenali tokoh →</span></span></button>` : ''}
     <div id="wil"><p class="dim center">Memuat peta…</p></div>`;
   wireTop();
   app.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { S.wil = b.dataset.k; save(); beep('tap'); scrPeta(); });
+  app.querySelectorAll('.jenjang button').forEach(b => b.onclick = () => {
+    if (b.dataset.j === jj) return;
+    const pk = S.player && S.player.kelas;
+    S.wil = jenjangOf(pk) === b.dataset.j && KELAS_WIL.includes(pk) ? pk : (b.dataset.j === 'MTs' ? 'VII' : 'X'); save(); beep('tap'); scrPeta();
+  });
+  if ($('#kt')) $('#kt').onclick = () => { beep('tap'); kenalTokoh(); };
+  if (jj === 'MTs' && !store.get('kenal_tokoh', false)) { store.set('kenal_tokoh', true); kenalTokoh(); }
   const kat = await getKatalog();
   const w = WILAYAH.find(x => x.kelas === S.wil);
   const items = JALUR.map(j => {
@@ -568,7 +631,7 @@ function kantong(logs){
   if (ids.length > 300) ids.sort((a, b) => K[a].t - K[b].t).slice(0, ids.length - 300).forEach(id => delete K[id]);
 }
 const jatuhTempo = () => Object.keys(S.salah).filter(id => S.salah[id].d <= Date.now());
-const kelasPemain = () => S.player && ['X', 'XI', 'XII'].includes(S.player.kelas) ? S.player.kelas : S.wil;
+const kelasPemain = () => S.player && KELAS_WIL.includes(S.player.kelas) ? S.player.kelas : S.wil;
 function tglPendek(d){ return new Date(d).toLocaleDateString('id-ID', {weekday: 'long', day: 'numeric', month: 'short'}); }
 async function panelPeta(){
   const box = $('#pnl'); if (!box || !S.player) return;
@@ -597,13 +660,13 @@ async function panelPeta(){
   // tantangan
   const T = await getTantangan(); const tb = $('#tnt'); if (!T || !tb) return;
   const kl = kelasPemain(), n = (T.jumlah || {})[kl] || 0, target = T.target || 1000, pct = Math.min(100, Math.round(n / target * 100));
-  tb.innerHTML = `<div class="info fade"><div class="tag">🐫 Tantangan Kafilah Bersama · pekan ini</div>
+  tb.innerHTML = `<div class="info fade"><div class="tag">${lautKah(kl) ? '⛵' : '🐫'} Tantangan Kafilah Bersama · pekan ini</div>
     <h3>Kafilah kelas ${esc(kl)}: ${n.toLocaleString('id-ID')} / ${target.toLocaleString('id-ID')} jawaban benar</h3>
     <div class="mini"><i style="width:${pct}%;background:#d9a03f"></i></div>
     <div class="sub">${pct >= 100 ? '🎉 Target pekan ini tercapai! Alhamdulillah, kafilah sampai bersama.' : 'Setiap jawaban benarmu menambah langkah kafilah kelasmu. Tanpa nama, tanpa peringkat. Kita sampai bersama!'}</div></div>`;
 }
 async function getTantangan(){
-  if (DEMO) return {target: 1000, jumlah: {X: 640, XI: 420, XII: 880, Umum: 35}};
+  if (DEMO) return {target: 1000, jumlah: {VII: 510, VIII: 300, IX: 720, X: 640, XI: 420, XII: 880, Umum: 35}};
   if (!API_URL) return null;
   const c = store.get('tantangan', null);
   if (c && Date.now() - c.t < 10 * 60e3) return c.d;
@@ -666,7 +729,7 @@ async function simpanOffline(){
 /* ======================= MURATTAL ======================= */
 const SURAH = ["Al-Fatihah","Al-Baqarah","Ali 'Imran","An-Nisa'","Al-Ma'idah","Al-An'am","Al-A'raf","Al-Anfal","At-Taubah","Yunus","Hud","Yusuf","Ar-Ra'd","Ibrahim","Al-Hijr","An-Nahl","Al-Isra'","Al-Kahf","Maryam","Taha","Al-Anbiya'","Al-Hajj","Al-Mu'minun","An-Nur","Al-Furqan","Asy-Syu'ara'","An-Naml","Al-Qashash","Al-'Ankabut","Ar-Rum","Luqman","As-Sajdah","Al-Ahzab","Saba'","Fathir","Yasin","Ash-Shaffat","Shad","Az-Zumar","Ghafir","Fushshilat","Asy-Syura","Az-Zukhruf","Ad-Dukhan","Al-Jatsiyah","Al-Ahqaf","Muhammad","Al-Fath","Al-Hujurat","Qaf","Adz-Dzariyat","Ath-Thur","An-Najm","Al-Qamar","Ar-Rahman","Al-Waqi'ah","Al-Hadid","Al-Mujadilah","Al-Hasyr","Al-Mumtahanah","Ash-Shaff","Al-Jumu'ah","Al-Munafiqun","At-Taghabun","Ath-Thalaq","At-Tahrim","Al-Mulk","Al-Qalam","Al-Haqqah","Al-Ma'arij","Nuh","Al-Jinn","Al-Muzzammil","Al-Muddatstsir","Al-Qiyamah","Al-Insan","Al-Mursalat","An-Naba'","An-Nazi'at","'Abasa","At-Takwir","Al-Infithar","Al-Muthaffifin","Al-Insyiqaq","Al-Buruj","Ath-Thariq","Al-A'la","Al-Ghasyiyah","Al-Fajr","Al-Balad","Asy-Syams","Al-Lail","Adh-Dhuha","Asy-Syarh","At-Tin","Al-'Alaq","Al-Qadr","Al-Bayyinah","Az-Zalzalah","Al-'Adiyat","Al-Qari'ah","At-Takatsur","Al-'Ashr","Al-Humazah","Al-Fil","Quraisy","Al-Ma'un","Al-Kautsar","Al-Kafirun","An-Nashr","Al-Lahab","Al-Ikhlas","Al-Falaq","An-Nas"];
 const normS = x => String(x).toLowerCase().replace(/[^a-z]/g, '');
-const ALIAS_S = {almukminun: 23, attawbah: 9, thaha: 20, yaasin: 36, alinsyirah: 94, alisra: 17, annisa: 4, alimran: 3, imran: 3, almaun: 107, annasr: 110, ashshura: 42};
+const ALIAS_S = {almukminun: 23, attawbah: 9, thaha: 20, yaasin: 36, alinsyirah: 94, alisra: 17, annisa: 4, alimran: 3, imran: 3, almaun: 107, annasr: 110, ashshura: 42, fussilat: 41, fushilat: 41};
 function noSurah(nama){ const n = normS(nama); const i = SURAH.findIndex(x => normS(x) === n); return i >= 0 ? i + 1 : ALIAS_S[n] || 0; }
 function rujukanAyat(teks){
   const out = [], re = /QS\.?\s*([A-Za-z'’\- ]+?)\s*(?:\[\d+\])?\s*:\s*(\d+)(?:\s*[-–]\s*(\d+))?/g; let m;
@@ -751,12 +814,14 @@ async function scrMurattal(ref, back){
 }
 
 /* ======================= KAFILAH & PASAR ======================= */
-const ASAL = {X: 'Makkah', XI: 'Damaskus', XII: 'Kairo'};
 const BARANG = [
   {id: 'unta', slot: 'kendaraan', e: '🐪', nama: 'Unta Setia', h: 0},
   {id: 'unta2', slot: 'kendaraan', e: '🐫', nama: 'Unta Dua Punuk', h: 15},
   {id: 'kuda', slot: 'kendaraan', e: '🐎', nama: 'Kuda Arab', h: 30},
   {id: 'keledai', slot: 'kendaraan', e: '🫏', nama: 'Keledai Tangguh', h: 20},
+  {id: 'pinisi', slot: 'perahu', e: '⛵', nama: 'Kapal Pinisi', h: 0},
+  {id: 'sampan', slot: 'perahu', e: '🚣', nama: 'Sampan Dayung', h: 12},
+  {id: 'korakora', slot: 'perahu', e: '🛶', nama: 'Kora-kora Maluku', h: 25},
   {id: 'panji', slot: 'panji', e: '🚩', nama: 'Panji Kafilah', h: 10},
   {id: 'hilal', slot: 'panji', e: '🌙', nama: 'Panji Hilal', h: 20},
   {id: 'bintang', slot: 'panji', e: '⭐', nama: 'Panji Bintang', h: 25},
@@ -766,30 +831,31 @@ const BARANG = [
   {id: 'tenda', slot: 'bawaan', e: '⛺', nama: 'Tenda Musafir', h: 25},
   {id: 'air', slot: 'bawaan', e: '🏺', nama: 'Kendi Air', h: 15}
 ];
-const SLOT = {kendaraan: 'Tunggangan', panji: 'Panji', bawaan: 'Bawaan'};
+const SLOT = {kendaraan: 'Tunggangan (MA)', perahu: 'Perahu (MTs)', panji: 'Panji', bawaan: 'Bawaan'};
 const barang = id => BARANG.find(b => b.id === id);
-function kafilahEmoji(){
+function kafilahEmoji(laut){
   const P = S.kafilah.pakai, out = [];
   if (P.bawaan && barang(P.bawaan)) out.push(`<span>${barang(P.bawaan).e}</span>`);
-  out.push(`<span class="bob">${(barang(P.kendaraan) || BARANG[0]).e}</span>`);
+  out.push(`<span class="bob">${laut ? (barang(P.perahu) || barang('pinisi')).e : (barang(P.kendaraan) || BARANG[0]).e}</span>`);
   if (P.panji && barang(P.panji)) out.push(`<span>${barang(P.panji).e}</span>`);
   return out.join('');
 }
 function htmlKafilah(w, wp){
   const pos = 8 + Math.min(100, Math.max(0, wp)) * 0.84;
-  return `<div class="kafilah fade" id="kfl" role="button" aria-label="Pasar Kafilah">
+  return `<div class="kafilah fade ${w.jenjang === 'MTs' ? 'laut' : ''}" id="kfl" role="button" aria-label="Pasar Kafilah">
     <div class="jalan"></div>
-    <span class="kota" style="left:4px">🕌 ${ASAL[w.kelas]}</span><span class="kota" style="right:4px">🏁 ${esc(w.tujuan)}</span>
-    <div class="grp" style="left:${pos}%">${kafilahEmoji()}</div></div>`;
+    <span class="kota" style="left:4px">🕌 ${esc(w.asal)}</span><span class="kota" style="right:4px">🏁 ${esc(w.tujuan)}</span>
+    <div class="grp" style="left:${pos}%">${kafilahEmoji(w.jenjang === 'MTs')}</div></div>`;
 }
 function scrPasar(){
   const K = S.kafilah;
   app.innerHTML = topbar(true) + `<div class="card fade">
     <div class="center"><div class="tag">Pasar Kafilah</div><h2 style="font-size:21px;margin-top:4px">Hias kafilahmu</h2>
     <p class="small">Tukar kurma dengan hiasan. Kafilahmu akan tampil di peta dan berjalan mengikuti kemajuanmu.</p>
-    <div style="font-size:44px;margin:12px 0;transform:scaleX(-1)">${kafilahEmoji()}</div></div>
+    <div style="font-size:44px;margin:12px 0;transform:scaleX(-1)">${kafilahEmoji(lautKah(S.wil))}</div>
+    <p class="small">${lautKah(S.wil) ? 'Di jenjang MTs kafilahmu berlayar dengan perahu. Di jenjang MA kafilahmu menunggang hewan.' : 'Di jenjang MA kafilahmu menunggang hewan. Di jenjang MTs kafilahmu berlayar dengan perahu.'}</p></div>
     ${Object.keys(SLOT).map(sl => `<h3 class="sec">${SLOT[sl]}</h3><div class="shop">${
-      (sl !== 'kendaraan' ? [`<button data-lepas="${sl}" class="${!K.pakai[sl] ? 'on' : ''}"><span class="e">∅</span>Tanpa ${SLOT[sl].toLowerCase()}<span class="h">${!K.pakai[sl] ? 'Dipakai' : 'Lepas'}</span></button>`] : []).concat(
+      (!['kendaraan', 'perahu'].includes(sl) ? [`<button data-lepas="${sl}" class="${!K.pakai[sl] ? 'on' : ''}"><span class="e">∅</span>Tanpa ${SLOT[sl].toLowerCase()}<span class="h">${!K.pakai[sl] ? 'Dipakai' : 'Lepas'}</span></button>`] : []).concat(
       BARANG.filter(b => b.slot === sl).map(b => {
         const punya = K.punya.includes(b.id), dipakai = K.pakai[sl] === b.id;
         return `<button data-id="${b.id}" class="${dipakai ? 'on' : ''}"><span class="e">${b.e}</span>${b.nama}<span class="h">${dipakai ? 'Dipakai' : punya ? 'Pakai' : '🌴 ' + b.h}</span></button>`;
@@ -857,6 +923,7 @@ function scrBekal(kelas, mapel, no){
       <h2>${esc(b.judul_bab)}</h2>
       <ol>${poin.map(x => `<li>${esc(x)}</li>`).join('')}</ol>
       ${b.ayat_hadis ? `<div class="dalil"><b>Dalil kunci:</b> ${esc(b.ayat_hadis)}${tombolMurattal(b.ayat_hadis)}</div>` : ''}
+      ${kisahHTML(kelas, mapel, no)}
     </div>
     <button class="btn gold mt2" id="go">Siap Diuji</button>
     ${kartu.length ? `<button class="btn ghost mt" id="kk">Ulang dengan Kartu Kilat (${kartu.length})</button>` : ''}`;
@@ -991,16 +1058,21 @@ function peristiwa(){
   const jenis = shuffle(['oase', 'badai'].concat(ulang.length ? ['musafir'] : []))[0];
   const kartu = (ic, tag, judul, teks, tombol) => hud() + `<div class="card evt fade"><div class="big-ic">${ic}</div><div class="tag mt">${tag}</div>
     <h2 style="font-size:22px;margin:6px 0">${judul}</h2><p class="small">${teks}</p>${tombol}</div>`;
+  const laut = lautKah(G.kelas);
   if (jenis === 'oase') {
     const n = 2 + Math.floor(Math.random() * 3);
     G.kurma += n; beep('win');
-    app.innerHTML = kartu('🌴', 'Peristiwa di jalan', 'Oase di tengah gurun!', `Kafilahmu menemukan mata air dan pohon kurma. Kamu memetik <b>${n} kurma</b> sebagai bekal.`, '<button class="btn gold mt2" id="go">Lanjutkan perjalanan</button>');
+    app.innerHTML = laut
+      ? kartu('🏝️', 'Peristiwa di laut', 'Singgah di pulau!', `Kapalmu singgah di sebuah pulau. Penduduknya ramah dan membekalimu <b>${n} kurma</b>.`, '<button class="btn gold mt2" id="go">Lanjutkan pelayaran</button>')
+      : kartu('🌴', 'Peristiwa di jalan', 'Oase di tengah gurun!', `Kafilahmu menemukan mata air dan pohon kurma. Kamu memetik <b>${n} kurma</b> sebagai bekal.`, '<button class="btn gold mt2" id="go">Lanjutkan perjalanan</button>');
   } else if (jenis === 'badai') {
     G.badai = G.bi; beep('no');
-    app.innerHTML = kartu('🌪️', 'Peristiwa di jalan', 'Badai pasir datang!', 'Kafilah harus bergegas menembus badai. Pada babak berikutnya, setiap jawaban benar memberi <b>2 kurma</b>.', '<button class="btn gold mt2" id="go">Hadapi badai</button>');
+    app.innerHTML = laut
+      ? kartu('🌊', 'Peristiwa di laut', 'Ombak besar datang!', 'Layar harus dikembangkan dengan cepat. Pada babak berikutnya, setiap jawaban benar memberi <b>2 kurma</b>.', '<button class="btn gold mt2" id="go">Hadapi ombak</button>')
+      : kartu('🌪️', 'Peristiwa di jalan', 'Badai pasir datang!', 'Kafilah harus bergegas menembus badai. Pada babak berikutnya, setiap jawaban benar memberi <b>2 kurma</b>.', '<button class="btn gold mt2" id="go">Hadapi badai</button>');
   } else {
     const s = shuffle(ulang)[0];
-    app.innerHTML = kartu('🧕', 'Peristiwa di jalan', 'Bertemu musafir', `Seorang musafir menguji ingatanmu tentang manzil ${s.no_bab}. Jawab benar untuk mendapat <b>3 kurma</b>. Tidak memengaruhi nilai.`, '<div id="mq" class="mt2"></div>');
+    app.innerHTML = kartu('🧕', laut ? 'Peristiwa di laut' : 'Peristiwa di jalan', 'Bertemu musafir', `Seorang musafir menguji ingatanmu tentang manzil ${s.no_bab}. Jawab benar untuk mendapat <b>3 kurma</b>. Tidak memengaruhi nilai.`, '<div id="mq" class="mt2"></div>');
     const opts = s.jenis === 'BS' ? [{t: 'Benar', ok: s.kunci === 'BENAR'}, {t: 'Salah', ok: s.kunci !== 'BENAR'}]
       : shuffle(['a','b','c','d'].map((x, i) => ({t: s['pilihan_' + x], ok: 'ABCD'[i] === String(s.kunci).toUpperCase()})).filter(o => o.t));
     $('#mq').innerHTML = `<div class="qtext" style="text-align:left">${esc(s.pertanyaan)}</div>` + opts.map((o, i) => `<button class="opt" data-i="${i}" style="text-align:left">${esc(o.t)}</button>`).join('');
@@ -1235,13 +1307,20 @@ function selesaiIjazah(){
     <div style="font-size:64px">${lulus ? '📜' : '📖'}</div>
     <h2 style="font-size:22px;margin-top:6px">${lulus ? 'Alhamdulillah, ijazah diraih!' : 'Belum lulus ujian'}</h2>
     <div class="big">${nilai}</div>
-    <p class="small">${lulus ? 'Selamat! Perjalananmu di wilayah ini tuntas.' : 'Butuh nilai 70. Ulangi manzil yang masih lemah di Paspor, lalu coba lagi.'}</p>
+    <p class="small">${lulus ? lanjutan(kelas) : 'Butuh nilai 70. Ulangi manzil yang masih lemah di Paspor, lalu coba lagi.'}</p>
     ${lulus ? '<button class="btn gold mt2" id="sr">Lihat Ijazahku</button>' : ''}
     <button class="btn green mt" id="ul">↻ Ulangi ujian</button>
     <button class="btn plain mt" id="pt">Kembali ke Peta</button></div>`;
   if (lulus) $('#sr').onclick = () => scrSertifikat(kelas);
   $('#ul').onclick = () => mulaiIjazah(kelas);
   $('#pt').onclick = scrPeta;
+}
+
+function lanjutan(kelas){
+  const i = WILAYAH.findIndex(x => x.kelas === kelas), nx = WILAYAH[i + 1];
+  if (kelas === 'IX') return 'MasyaAllah, perjalanan Nusantara tuntas! Anas dan Asma pulang ke pesantren membawa banyak kisah. Bersama Siraj, rihlahmu bisa berlanjut ke tanah Hijaz di jenjang MA.';
+  if (!nx) return 'MasyaAllah, seluruh perjalanan Rihlah Ilmu tuntas!';
+  return `Selamat! Perjalananmu di wilayah ini tuntas. Wilayah berikutnya: ${nx.nama} (kelas ${nx.kelas}).`;
 }
 
 function gambarIjazah(kelas){
@@ -1258,7 +1337,8 @@ function gambarIjazah(kelas){
   g.textAlign = 'center';
   g.fillStyle = '#8a6a1c'; g.font = F('bold', 44, "'Amiri', serif"); g.fillText('رِحْلَةُ الْعِلْمِ', 700, 160);
   g.fillStyle = '#14213d'; g.font = F(800, 64); g.fillText('IJAZAH RIHLAH ILMU', 700, 250);
-  g.fillStyle = '#5b5f6b'; g.font = F(600, 28); g.fillText('Dengan ini menyatakan bahwa', 700, 330);
+  g.fillStyle = '#8a6a1c'; g.font = F(700, 24); g.fillText(w.jenjang === 'MTs' ? 'Jenjang MTs · Rihlah Nusantara bersama Anas, Asma, dan Siraj' : 'Jenjang MA · Rihlah Hijaz hingga Nusantara', 700, 292);
+  g.fillStyle = '#5b5f6b'; g.font = F(600, 28); g.fillText('Dengan ini menyatakan bahwa', 700, 340);
   g.fillStyle = '#14213d'; g.font = F(800, 72);
   let nm = S.player.nama; while (g.measureText(nm).width > 1100 && nm.length > 3) nm = nm.slice(0, -1);
   g.fillText(nm, 700, 430);
@@ -1286,7 +1366,7 @@ function scrSertifikat(kelas){
     ${navigator.share ? '<button class="btn ghost mt" id="sh">Bagikan</button>' : ''}
     <p class="dim center mt" style="font-size:13px">Jika tombol simpan tidak berfungsi, tekan lama gambar lalu pilih Simpan gambar.</p></div>`;
   wireTop(scrPaspor);
-  const nama = 'Ijazah-Rihlah-Ilmu-Kelas-' + kelas + '.png';
+  const nama = 'Ijazah-Rihlah-Ilmu-' + (WILAYAH.find(x => x.kelas === kelas) || {}).jenjang + '-Kelas-' + kelas + '.png';
   $('#dl').onclick = () => { const a = document.createElement('a'); a.href = url; a.download = nama; document.body.appendChild(a); a.click(); a.remove(); };
   if ($('#sh')) $('#sh').onclick = async () => {
     try {
@@ -1307,7 +1387,7 @@ const LENCANA = [
   {ikon: '⭐', nama: 'Mumtaz', syarat: 'Meraih bintang tiga di 5 manzil', cek: () => Object.keys(S.prog).filter(k => /\|\d+$/.test(k) && S.prog[k].stars >= 3).length >= 5},
   {ikon: '📚', nama: 'Pecinta Kitab', syarat: 'Memenangkan 4 munazharah', cek: () => Object.keys(S.prog).filter(k => k.endsWith('|M') && S.prog[k].best >= 70).length >= 4},
   {ikon: '📜', nama: 'Berijazah', syarat: 'Meraih satu ijazah', cek: () => Object.keys(S.prog).some(k => k.endsWith('|I') && S.prog[k].best >= 70)},
-  {ikon: '🐫', nama: 'Kafilah Megah', syarat: 'Memiliki 5 hiasan kafilah', cek: () => S.kafilah.punya.length >= 6}
+  {ikon: '🐫', nama: 'Kafilah Megah', syarat: 'Memiliki 5 hiasan kafilah', cek: () => S.kafilah.punya.length >= 7}
 ];
 function grafikNilai(H){
   if (H.length < 2) return `<p class="small mt">Mainkan minimal dua kali untuk melihat grafik perkembanganmu. Nilai terakhir: <b>${H.length ? H[0].nilai : '-'}</b></p>`;
@@ -1370,6 +1450,7 @@ function scrPaspor(){
       <div class="lencana">${LENCANA.map(l => `<span class="${l.cek() ? '' : 'off'}" title="${esc(l.syarat)}">${l.cek() ? l.ikon : '🔒'} ${esc(l.nama)}</span>`).join('')}</div>
       <p class="small mt">🔥 Bekal Harian: ${S.harian.last === hariIni() || S.harian.last === kemarin() ? S.harian.streak : 0} hari berturut-turut · rekor ${S.harian.best || 0} hari</p>
       <button class="btn plain mt" id="psr" style="min-height:42px;padding:10px">🐪 Pasar Kafilah</button>
+      <button class="btn plain mt" id="ktk" style="min-height:42px;padding:10px">👦👧 Kenali Anas & Asma (tokoh MTs)</button>
       <h3 class="sec">Aplikasi di HP</h3>
       ${terpasang() ? '<p class="small">✅ Rihlah Ilmu sudah terpasang di HP ini.</p>' : '<button class="btn plain mt" id="pwa" style="min-height:42px;padding:10px">📲 Pasang di layar utama HP</button>'}
       <button class="btn plain mt" id="off" style="min-height:42px;padding:10px">⬇ Simpan soal kelasku untuk main offline</button>
@@ -1395,6 +1476,7 @@ function scrPaspor(){
   const lm = lemah.slice(0, 5);
   app.querySelectorAll('[data-sr]').forEach(b => b.onclick = () => { const x = lm[+b.dataset.sr]; beep('tap'); scrJalur(x.kl, x.mp); });
   $('#psr').onclick = scrPasar;
+  $('#ktk').onclick = kenalTokoh;
   if ($('#pwa')) $('#pwa').onclick = pasangPWA;
   $('#off').onclick = simpanOffline;
   $('#ed').onclick = () => scrIdentitas(true);
@@ -1403,7 +1485,7 @@ function scrPaspor(){
     m.innerHTML = `<div class="card center"><h3>Ganti pemain?</h3><p class="small mt">Perjalanan ${esc(p.nama)} akan dihapus dari HP ini. Catat dulu Kode Lanjut <b>${esc(p.kode)}</b> agar bisa dipulihkan.</p><button class="btn gold mt2" id="mb">Batal</button><button class="btn plain mt" id="my">Ya, ganti pemain</button></div>`;
     document.body.appendChild(m);
     m.querySelector('#mb').onclick = () => m.remove();
-    m.querySelector('#my').onclick = () => { m.remove(); ['player','prog','hist','kurma','wil','harian','kafilah','salah'].forEach(store.del); S = {salah:{}, player:null, prog:{}, hist:[], kurma:0, mute:S.mute, wil:null, harian:{last:'', streak:0, best:0, total:0}, kafilah:{punya:['unta'], pakai:{kendaraan:'unta', panji:'', bawaan:''}}}; scrGerbang(); };
+    m.querySelector('#my').onclick = () => { m.remove(); ['player','prog','hist','kurma','wil','harian','kafilah','salah'].forEach(store.del); S = {salah:{}, player:null, prog:{}, hist:[], kurma:0, mute:S.mute, wil:null, harian:{last:'', streak:0, best:0, total:0}, kafilah:{punya:['unta','pinisi'], pakai:{kendaraan:'unta', perahu:'pinisi', panji:'', bawaan:''}}}; scrGerbang(); };
   };
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "Rihlah Ilmu",
   "short_name": "Rihlah Ilmu",
-  "description": "Game belajar PAI Madrasah Aliyah: Al-Qur'an Hadis, Akidah Akhlak, Fikih, dan SKI.",
+  "description": "Game belajar PAI MTs dan MA: Al-Qur'an Hadis, Akidah Akhlak, Fikih, dan SKI.",
   "lang": "id",
   "start_url": "./index.html",
   "scope": "./",

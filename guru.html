@@ -136,7 +136,7 @@ function formPulih(){
 function hasil(j){
   const contoh = j.awalan + '-XI-A';
   const situsGame = SITUS.replace(/\/$/, '');
-  const pesanSiswa = `Assalamu'alaikum. Ayo belajar PAI lewat game Rihlah Ilmu!\n\n1. Buka ${situsGame}\n2. Ketuk Mulai Perjalanan, tulis nama dan pilih kelas.\n3. Pada "Kode rombel", isi: ${contoh}\n   (ganti XI-A dengan kelasmu, misalnya ${j.awalan}-X-B)\n4. Mainkan manzil sesuai tugas dari guru.\n\nSudah terdaftar? Isi kode rombel lewat Paspor > Ubah nama atau kelas.`;
+  const pesanSiswa = `Assalamu'alaikum. Ayo belajar PAI lewat game Rihlah Ilmu!\n\n1. Buka ${situsGame}\n2. Ketuk Mulai Perjalanan, tulis nama dan pilih kelas.\n3. Pada "Kode rombel", isi: ${contoh}\n   (ganti XI-A dengan kelasmu, misalnya ${j.awalan}-X-B, atau ${j.awalan}-VIII-A untuk siswa MTs)\n4. Mainkan manzil sesuai tugas dari guru.\n\nSudah terdaftar? Isi kode rombel lewat Paspor > Ubah nama atau kelas.`;
   const pesanSaya = `Link dashboard guru Rihlah Ilmu saya (rahasia):\n${j.link}\n\nKode rombel sekolah: ${j.awalan}`;
   app.innerHTML = `<div class="card"><div class="tag">✅ ${j.aktif ? 'Pendaftaran berhasil' : 'Pendaftaran tercatat'}</div>
       <h2 style="margin:6px 0 0;font-size:20px">${esc(j.nama)}</h2><p class="small" style="margin:2px 0 0">${esc(j.sekolah)}</p>
