@@ -126,7 +126,7 @@ function tampil(){
   document.querySelector('header h1').innerHTML = isGuru() ? `Rihlah <span>Ilmu</span> · Guru` : `Rihlah <span>Ilmu</span> · Admin`;
   const jalurOpt = daftarJalur().map(j => { const [k, m] = j.split('|'); return `<option value="${esc(j)}" ${F.jalur === j ? 'selected' : ''}>${esc(m)} kelas ${esc(k)}</option>`; }).join('');
   $('#main').innerHTML = `
-    ${isGuru() ? `<div class="card" style="background:#eaf2fb;border-left:6px solid #4a90c8"><b>Assalamu'alaikum, ${esc(D.guru.nama)}</b>${D.guru.sekolah ? ' · ' + esc(D.guru.sekolah) : ''}<p class="small" style="margin:4px 0 0">Anda melihat siswa dengan kode rombel berawalan <b>${esc(D.guru.awalan)}</b> (contoh: <code>${esc(D.guru.awalan)}-XI-A</code>). Minta siswa mengisi kode rombel itu saat mendaftar, atau lewat Paspor → Ubah nama atau kelas. Link ini khusus untuk Anda, mohon tidak dibagikan.</p></div>` : ''}
+    ${isGuru() ? `<div class="card" style="background:#eaf2fb;border-left:6px solid #4a90c8"><b>Assalamu'alaikum, ${esc(D.guru.nama)}</b>${D.guru.sekolah ? ' · ' + esc(D.guru.sekolah) : ''}<p class="small" style="margin:4px 0 0">Anda melihat siswa dengan kode rombel berawalan <b>${esc(D.guru.awalan)}</b> (contoh: <code>${esc(D.guru.awalan)}-XI-A</code>). Minta siswa mengisi kode rombel itu saat mendaftar, atau lewat Paspor → Ubah nama atau kelas. Link ini khusus untuk Anda, mohon tidak dibagikan. <a href="guru.html">Privasi &amp; kelola pendaftaran</a> · <button class="link" id="hpg" style="color:#a3261e">Hapus pendaftaran saya</button></p></div>` : ''}
     ${DEMO_ADMIN ? '<div class="card small" style="background:#fff4d8">Pratinjau dengan <b>data contoh</b> (bukan pemain sungguhan). Versi asli menampilkan data dari Google Sheet.</div>' : ''}
     <nav>${[['ringkasan','Ringkasan'],['pemain','Daftar Pemain'],['tugas','Tugas'],['peta','Peta Kemampuan'],['soal','Analisis Soal'],['unduh','Unduh Data']].map(([k, n]) => `<button data-t="${k}" class="${TAB === k ? 'on' : ''}">${n}</button>`).join('')}</nav>
     <div class="filters">
@@ -141,6 +141,13 @@ function tampil(){
   $('#fj').onchange = e => { F.jalur = e.target.value; tampil(); };
   $('#fr').onchange = e => { F.rentang = e.target.value; tampil(); };
   if ($('#fb')) $('#fb').onchange = e => { F.rombel = e.target.value; tampil(); };
+  if ($('#hpg')) $('#hpg').onclick = async () => {
+    if (!confirm('Hapus pendaftaran guru Anda? Link ini akan langsung tidak berlaku dan tidak bisa dipulihkan.')) return;
+    try {
+      if (!DEMO_ADMIN) { const r = await fetch(API_URL, {method: 'POST', body: JSON.stringify({action: 'hapusGuru', g: kunciGuru()})}); const j = await r.json(); if (!j.ok) throw new Error(j.error); }
+      $('#main').innerHTML = '<div class="card gate"><h2>Pendaftaran dihapus</h2><p class="small">Data guru Anda sudah dihapus dan link ini tidak berlaku lagi. Terima kasih telah memakai Rihlah Ilmu.</p></div>';
+    } catch (e) { alertBox('Gagal menghapus: ' + e.message); }
+  };
   ({ringkasan, pemain: tabPemain, tugas: tabTugas, peta, soal: tabSoal, unduh})[TAB]();
 }
 

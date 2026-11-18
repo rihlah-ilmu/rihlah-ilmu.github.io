@@ -35,6 +35,10 @@ textarea{min-height:120px;font-size:14px;line-height:1.5}
 .note{background:#fff6e3;border:1.5px solid #f0d9a6;border-radius:12px;padding:12px;font-size:13px;line-height:1.55;margin-top:12px}
 .warn{background:#fdecec;border-color:#f3c4c1}
 ol{padding-left:18px;margin:6px 0}li{margin:4px 0}
+details.priv{background:#eef4fb;border:1.5px solid #cfe0f3;border-radius:12px;padding:10px 12px;margin-top:14px;font-size:13px;line-height:1.55}
+details.priv summary{cursor:pointer;font-weight:800;color:#1e4f86}
+details.priv ul{padding-left:18px;margin:8px 0 2px}
+.btn.danger{background:#fdecec;color:#a3261e}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--night);color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;font-weight:700;opacity:0;transition:.25s;pointer-events:none}
 .toast.show{opacity:1}
 </style>
@@ -58,7 +62,16 @@ async function salin(t){ try { await navigator.clipboard.writeText(t); toast('Te
 const PESAN_ERR = {nama_terlalu_pendek: 'Tulis nama Anda (minimal 3 huruf).', sekolah_terlalu_pendek: 'Tulis nama sekolah atau madrasah (minimal 3 huruf).',
   nama_tidak_pantas: 'Nama atau sekolah mengandung kata yang tidak diizinkan.', batas_harian: 'Pendaftaran hari ini sudah penuh. Silakan coba lagi besok.',
   pendaftaran_ditutup: 'Pendaftaran guru sedang ditutup oleh pengelola.', tidak_ditemukan: 'Data tidak ditemukan. Periksa kode rombel dan nomor WA/email yang Anda daftarkan.',
-  data_kurang: 'Isi kode rombel dan nomor WA/email.'};
+  data_kurang: 'Isi kode rombel dan nomor WA/email.', terlalu_banyak: 'Terlalu banyak percobaan. Demi keamanan, silakan coba lagi 1 jam lagi.'};
+const PRIVASI = `<details class="priv"><summary>🔒 Privasi dan keamanan data</summary><ul>
+  <li><b>Data yang disimpan:</b> nama, sekolah, dan (bila diisi) nomor WA atau email Anda.</li>
+  <li><b>Tujuan:</b> membuat link dashboard dan memulihkannya bila Anda lupa. Tidak dipakai untuk promosi.</li>
+  <li><b>Tempat penyimpanan:</b> Google Sheet milik pengelola Rihlah Ilmu, dengan perlindungan akun Google.</li>
+  <li><b>Yang bisa melihat:</b> hanya pengelola. Nomor WA/email tidak pernah ditampilkan di game, dashboard, atau kepada guru lain, dan tidak dibagikan ke pihak lain.</li>
+  <li><b>Opsional:</b> WA/email boleh dikosongkan. Akibatnya, pemulihan link harus melalui pengelola.</li>
+  <li><b>Hapus kapan saja:</b> tombol "Hapus pendaftaran saya" menghapus data Anda dari sistem.</li>
+  <li><b>Pengamanan:</b> fitur pemulihan dibatasi 5 percobaan per jam untuk mencegah tebakan.</li></ul>
+  <span>Data siswa (nama, kelas, nilai) hanya dapat dilihat oleh pengelola dan guru pemilik kode rombel yang mereka isi.</span></details>`;
 
 async function kirim(body){
   if (!API_URL) { // pratinjau tanpa server
@@ -88,7 +101,7 @@ function formDaftar(){
     <label for="kt">Nomor WA atau email <span class="opt">(dianjurkan, untuk memulihkan link bila lupa)</span></label><input id="kt" maxlength="60" placeholder="Contoh: 0812xxxx atau nama@email.com" inputmode="email">
     <div class="err" id="er"></div>
     <button class="btn" id="ok">Daftar & buat link saya</button>
-    <p class="small" style="margin-top:12px">Setelah mendaftar, Anda mendapat <b>kode rombel</b> untuk dibagikan ke siswa dan <b>link dashboard</b> pribadi. Data siswa sekolah lain tidak akan terlihat.</p>`;
+    <p class="small" style="margin-top:12px">Setelah mendaftar, Anda mendapat <b>kode rombel</b> untuk dibagikan ke siswa dan <b>link dashboard</b> pribadi. Data siswa sekolah lain tidak akan terlihat.</p>${PRIVASI}`;
   $('#ok').onclick = async () => {
     const nama = $('#nm').value.trim(), sekolah = $('#sk').value.trim(), kontak = $('#kt').value.trim();
     if (nama.length < 3) return $('#er').textContent = PESAN_ERR.nama_terlalu_pendek;
@@ -109,7 +122,7 @@ function formPulih(){
     <label for="kt">Nomor WA atau email</label><input id="kt" maxlength="60" placeholder="0812xxxx atau nama@email.com">
     <div class="err" id="er"></div>
     <button class="btn" id="ok">Pulihkan</button>
-    <p class="small" style="margin-top:12px">Dulu tidak mengisi WA/email? Hubungi pengelola Rihlah Ilmu dengan menyebutkan nama dan sekolah Anda.</p>`;
+    <p class="small" style="margin-top:12px">Dulu tidak mengisi WA/email? Hubungi pengelola Rihlah Ilmu dengan menyebutkan nama dan sekolah Anda.</p>${PRIVASI}`;
   $('#ok').onclick = async () => {
     $('#ok').disabled = true; $('#er').textContent = '';
     try {
@@ -143,12 +156,26 @@ function hasil(j){
     </div>
     <div class="card"><div class="tag">Yang bisa Anda lakukan di dashboard</div>
       <ol class="small"><li>Melihat ringkasan pekanan, daftar siswa, dan peta kemampuan per bab.</li><li>Membuat tugas untuk rombel Anda dan memantau siapa yang sudah selesai.</li><li>Mencetak rapor siswa (bisa disimpan PDF) dan mengunduh data.</li></ol>
-      <button class="btn plain" id="bk">Kembali</button></div>`;
+      <button class="btn plain" id="bk">Kembali</button></div>
+    <div class="card"><div class="tag">Data Anda</div>${PRIVASI}
+      <button class="btn danger" id="hp">Hapus pendaftaran saya</button>
+      <p class="small" style="margin-top:8px">Menghapus nama, sekolah, kontak, dan link Anda. Link dashboard langsung tidak berlaku. Data permainan siswa tetap tersimpan untuk siswa itu sendiri.</p></div>`;
   $('#ck').onclick = () => salin(j.awalan);
   $('#cl').onclick = () => salin(j.link);
   $('#cp').onclick = () => salin($('#ps').value);
   $('#wp').onclick = e => { e.currentTarget.href = 'https://wa.me/?text=' + encodeURIComponent($('#ps').value); };
   $('#bk').onclick = () => tampil('daftar');
+  $('#hp').onclick = async () => {
+    if (!confirm('Hapus pendaftaran Anda? Link dashboard akan langsung tidak berlaku dan tidak bisa dipulihkan.')) return;
+    const g = String(j.link || '').split('#g=')[1] || '';
+    try {
+      const r = API_URL ? await kirim({action: 'hapusGuru', g}) : {ok: true};
+      if (!r.ok && r.error !== 'tidak_ditemukan') throw new Error(r.error);
+      try { localStorage.removeItem('rh_guru'); } catch (e) {}
+      app.innerHTML = '<div class="card"><div class="tag">Selesai</div><p>Pendaftaran Anda sudah dihapus dari sistem. Terima kasih telah memakai Rihlah Ilmu.</p><button class="btn plain" id="bk2">Kembali ke halaman awal</button></div>';
+      $('#bk2').onclick = () => tampil('daftar');
+    } catch (e) { toast('Gagal menghapus. Periksa internet lalu coba lagi.'); }
+  };
   window.scrollTo(0, 0);
 }
 

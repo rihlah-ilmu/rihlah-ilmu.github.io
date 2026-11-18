@@ -395,8 +395,9 @@ function scrIdentitas(edit){
       <label class="lbl mt">Kelas</label>
       <div class="kelas">${['X','XI','XII','Umum'].map(k => `<button data-k="${k}" class="${k === kelas ? 'on' : ''}">${k}</button>`).join('')}</div>
       <label class="lbl mt" for="rb">Kode rombel <span class="small">(opsional, dari gurumu)</span></label>
-      <input class="txt" id="rb" maxlength="20" placeholder="Contoh: XI-A" value="${esc(p.rombel || '')}" style="text-transform:uppercase">
+      <input class="txt" id="rb" maxlength="20" placeholder="Contoh: MAN2SEM-K7P-XI-A" value="${esc(p.rombel || '')}" style="text-transform:uppercase">
       <div class="err" id="er"></div>
+      <p class="small" style="margin-top:10px">🔒 Nama, kelas, dan nilaimu hanya dapat dilihat oleh pengelola Rihlah Ilmu dan gurumu (jika kamu mengisi kode rombel). Jangan menulis nomor HP, alamat, atau data pribadi lain.</p>
       <button class="btn gold mt" id="ok">${edit ? 'Simpan' : 'Berangkat!'}</button>
       ${edit ? '<button class="btn plain mt" id="bt">Batal</button>' : ''}
     </div></div>`;
